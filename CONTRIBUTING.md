@@ -1,7 +1,7 @@
 # Contributing to MDView
 
 MDView is a small, read-only Markdown viewer. Changes should make reading faster
-or clearer while keeping the app simple. Version 1.0 focuses on macOS; a possible
+or clearer while keeping the app simple. Version 1.0 supports macOS; a possible
 2.0 may bring the same reader to iOS.
 
 ## Issues and proposals

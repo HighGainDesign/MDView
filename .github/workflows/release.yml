@@ -144,6 +144,8 @@ jobs:
           release_flags=()
           if [[ "$RELEASE_VERSION" == 0.* ]]; then
             release_flags+=(--prerelease)
+          else
+            release_flags+=(--latest)
           fi
           gh release create "$RELEASE_TAG" \
             "dist/MDView-$RELEASE_VERSION.dmg" "dist/MDView-$RELEASE_VERSION.dmg.sha256" \

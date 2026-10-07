@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.0.0
+
+First stable macOS release, with the reader behavior tested in the previews:
+
+- Native read-only Markdown windows, automatic refresh, and saved-change review.
+- Tables, links, lists, code blocks, and footnotes using Apex.
+- Outline navigation, find, zoom, and per-window reading width.
+- System, Light, and Dark appearance shared with Finder Quick Look.
+- Optional Drafts action installed from Settings or the setup guide.
+- Automatic local images with scoped folder grants, and per-document HTTPS
+  image opt-in.
+- Universal Apple Silicon and Intel DMG, Developer ID signed and notarized by
+  Apple through the tag-driven GitHub workflow.
+
+The stable release is marked Latest on GitHub, with a prominent README download
+link. Markdown rendering and reader behavior are unchanged from 0.2.6.
+
 ## 0.2.6 — Preview
 
 - Configure tag-driven GitHub builds with Developer ID signing, Apple
