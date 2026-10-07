@@ -2,9 +2,6 @@
 
 A small, read-only Markdown viewer for macOS 14 and later. Open files written by your agents, or preview a draft from Drafts.
 
-**[Download MDView 1.0 for macOS](https://github.com/HighGainDesign/MDView/releases/latest)**
-— signed and notarized, for Apple Silicon and Intel.
-
 - Native document windows, Open Recent, and multiple files.
 - Automatic refresh, including editors that replace files atomically.
 - Tables, task lists, links, code blocks, footnotes, and blockquotes.
