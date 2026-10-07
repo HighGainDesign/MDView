@@ -51,6 +51,9 @@ enum HTMLAdapter {
             }
             if tag == "img" {
                 let src = try element.attr("src")
+                // Private comparison metadata preserves the Markdown image URL
+                // without loading it when remote resources are disabled.
+                try element.attr("data-mdview-image-source", src)
                 if !src.isEmpty, URLComponents(string: src)?.scheme == nil, !src.hasPrefix("/"),
                    let encoded = src.addingPercentEncoding(withAllowedCharacters: .alphanumerics) {
                     try element.attr("src", "mdview-resource://local/" + encoded)

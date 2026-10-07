@@ -8,6 +8,57 @@ struct DocumentChange: Identifiable, Sendable {
     let targetID: String?
     let before: String
     let after: String
+    /// Offset in this render's in-memory baseline, never in the source file.
+    let baselineOffset: Int
+    let replacement: ReadingUnit?
+}
+
+/// Rendered blocks let review advance without serializing or editing Markdown.
+struct ReadingUnit: Hashable, Sendable {
+    let tag: String
+    let alignment: String
+    let html: String
+    private let comparisonHTML: String
+
+    init(_ element: Element) throws {
+        tag = element.tagName()
+        alignment = try element.attr("align")
+        html = try element.html()
+        guard html.contains("data-mdview-image-source") else {
+            comparisonHTML = html
+            return
+        }
+        let comparison = Element(try Tag.valueOf(tag), "")
+        try comparison.html(html)
+        for image in try comparison.select("img").array() {
+            if image.hasAttr("data-mdview-image-source") {
+                try image.attr("src", image.attr("data-mdview-image-source"))
+                try image.removeAttr("data-mdview-image-source")
+                try image.removeAttr("referrerpolicy")
+                let attributes = (image.getAttributes()?.asList() ?? []).map { ($0.getKey(), $0.getValue()) }
+                for (key, _) in attributes { try image.removeAttr(key) }
+                for (key, value) in attributes.sorted(by: { $0.0 < $1.0 }) { try image.attr(key, value) }
+            }
+        }
+        comparisonHTML = try comparison.html()
+    }
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.tag == rhs.tag && lhs.alignment == rhs.alignment && lhs.comparisonHTML == rhs.comparisonHTML
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(tag)
+        hasher.combine(alignment)
+        hasher.combine(comparisonHTML)
+    }
+
+    func element() throws -> Element {
+        let element = Element(try Tag.valueOf(tag), "")
+        try element.attr("align", alignment)
+        try element.html(html)
+        return element
+    }
 }
 
 struct ChangeSummary: Sendable {
@@ -25,10 +76,18 @@ enum DocumentChanges {
     private static let unitTags: Set<String> = ["h1", "h2", "h3", "h4", "h5", "h6", "p", "li", "pre", "th", "td", "dt", "dd", "figure"]
 
     static func annotate(current: Document, baseline: Document) throws -> ChangeSummary {
-        let old = try units(in: baseline)
+        try annotate(current: current, baseline: snapshot(in: baseline))
+    }
+
+    static func snapshot(in document: Document) throws -> [ReadingUnit] {
+        try units(in: document).map { try ReadingUnit($0) }
+    }
+
+    static func annotate(current: Document, baseline: [ReadingUnit]) throws -> ChangeSummary {
+        let old = try baseline.map { try $0.element() }
         let new = try units(in: current)
-        let oldKeys = try old.map { try $0.tagName() + "|" + $0.attr("align") + "|" + $0.html() }
-        let newKeys = try new.map { try $0.tagName() + "|" + $0.attr("align") + "|" + $0.html() }
+        let oldKeys = baseline
+        let newKeys = try new.map { try ReadingUnit($0) }
         guard oldKeys != newKeys else { return ChangeSummary() }
         // Bound worst-case sequence work for huge generated documents. The
         // fallback is explicit in the review panel and preserves every block.
@@ -51,6 +110,7 @@ enum DocumentChanges {
         var summary = ChangeSummary(usesSectionComparison: coarse)
         var oldIndex = 0, newIndex = 0
         while oldIndex < old.count || newIndex < new.count {
+            let oldStart = oldIndex
             var oldRun: [Element] = [], newRun: [Element] = []
             while oldIndex < old.count, removed.contains(oldIndex) { oldRun.append(old[oldIndex]); oldIndex += 1 }
             while newIndex < new.count, inserted.contains(newIndex) { newRun.append(new[newIndex]); newIndex += 1 }
@@ -61,6 +121,7 @@ enum DocumentChanges {
                     let before = try previous?.text() ?? ""
                     let after = try updated?.text() ?? ""
                     let kind: DocumentChange.Kind = previous == nil ? .added : (updated == nil ? .removed : .edited)
+                    let replacement = try updated.map { try ReadingUnit($0) }
                     let index = summary.entries.count
                     var target: String?
                     if let updated {
@@ -74,7 +135,9 @@ enum DocumentChanges {
                         try updated.attr("aria-description", kind.rawValue + " since last review")
                         if let previous { try highlightWords(in: updated, comparedWith: previous) }
                     }
-                    summary.entries.append(DocumentChange(id: index, kind: kind, targetID: target, before: before, after: after))
+                    summary.entries.append(DocumentChange(id: index, kind: kind, targetID: target,
+                        before: before, after: after, baselineOffset: oldStart + min(i, oldRun.count),
+                        replacement: replacement))
                 }
             } else {
                 oldIndex += 1

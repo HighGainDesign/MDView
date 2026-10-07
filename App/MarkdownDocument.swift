@@ -20,6 +20,15 @@ final class MarkdownDocument: NSDocument {
         loadedSource.withLock { $0 = loaded }
     }
 
+    init(streamingPreview: Bool) {
+        super.init()
+        reader.isStreamingPreview = streamingPreview
+        reader.title = "Live Streaming Preview"
+        displayName = reader.title
+        let loaded = LoadedSource(title: reader.title)
+        loadedSource.withLock { $0 = loaded }
+    }
+
     override class var autosavesInPlace: Bool { false }
     override var isDocumentEdited: Bool { false }
     nonisolated override class func canConcurrentlyReadDocuments(ofType typeName: String) -> Bool { true }

@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.1.0 — 2026-10-07
+
+- Review saved changes individually with Previous/Next, Mark This Reviewed, and Mark All Reviewed. Acknowledgement advances the in-memory baseline without editing the file; later edits to reviewed text reappear for review.
+- Separate reader actions from passive update status and word count, with visible button controls and clearer Pause/Resume and Review Changes actions.
+- Live Streaming Preview reads the public Marked-compatible stream while Marked stays
+  closed. Drafts is tested; other publishers are accepted, with optional source
+  app names shown in the footer. Open it from File, Settings, the welcome window, or `mdview://stream`.
+- Pause keeps the current preview; Resume catches up. Closing the window stops
+  reading. The ordinary clipboard and source drafts are never changed.
+- The existing Drafts action still sends snapshots, and saved-file change review
+  remains separate from the live draft stream.
+
 ## 1.0.0
 
 First stable macOS release, with the reader behavior tested in the previews:

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct WelcomeView: View {
     let open: () -> Void
+    let liveStreaming: () -> Void
 
     var body: some View {
         VStack(spacing: 18) {
@@ -11,6 +12,7 @@ struct WelcomeView: View {
             Text("Open a file to view it. Changes appear automatically.\nYou can also preview a draft or use Finder’s Quick Look.")
                 .foregroundStyle(.secondary).multilineTextAlignment(.center)
             Button("Open Markdown…", action: open).buttonStyle(.borderedProminent).keyboardShortcut("o")
+            Button("Live Streaming Preview", action: liveStreaming).buttonStyle(.bordered)
             Text("Read-only • Tables • Links • Code blocks").font(.caption).foregroundStyle(.secondary)
         }
         .padding(40)

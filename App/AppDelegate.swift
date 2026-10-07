@@ -44,6 +44,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     else { self?.welcome?.close() }
                 }
             } else {
+                if url.scheme?.lowercased() == "mdview", url.host == "stream" {
+                    showLiveStreamingPreview()
+                    continue
+                }
                 do {
                     let request = try PreviewRequest(url: url)
                     let document = MarkdownDocument(preview: request)
@@ -63,7 +67,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             return
         }
         if welcome == nil {
-            let view = WelcomeView(open: { NSDocumentController.shared.openDocument(nil) })
+            let view = WelcomeView(open: { NSDocumentController.shared.openDocument(nil) },
+                                   liveStreaming: { [weak self] in self?.showLiveStreamingPreview() })
             let window = NSWindow(contentViewController: NSHostingController(rootView: view))
             window.title = "MDView"
             window.styleMask = [.titled, .closable, .miniaturizable]
@@ -77,6 +82,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func documentDidOpen() {
         welcome?.close()
     }
+
+    func showLiveStreamingPreview() {
+        if let document = NSDocumentController.shared.documents.compactMap({ $0 as? MarkdownDocument })
+            .first(where: { $0.reader.isStreamingPreview }) {
+            document.reader.streamPaused = false
+            document.showWindows()
+        } else {
+            let document = MarkdownDocument(streamingPreview: true)
+            NSDocumentController.shared.addDocument(document)
+            document.makeWindowControllers()
+            document.showWindows()
+        }
+        welcome?.close()
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    @objc private func liveStreamingPreview(_ sender: Any?) { showLiveStreamingPreview() }
 
     @objc private func showSettings(_ sender: Any?) {
         if settings == nil {
@@ -111,6 +133,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func zoomOut(_ sender: Any?) { reader?.changeZoom(by: -0.1) }
     @objc private func actualSize(_ sender: Any?) { reader?.zoom = 1 }
     @objc private func toggleOutline(_ sender: Any?) { reader?.showOutline.toggle() }
+    @objc private func reviewChanges(_ sender: Any?) {
+        guard let reader, reader.fileURL != nil else { return }
+        reader.showChanges.toggle()
+    }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
@@ -152,6 +178,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         let file = NSMenu(title: "File")
         add("Open…", to: file, action: #selector(NSDocumentController.openDocument(_:)), key: "o")
+        add("Live Streaming Preview", to: file, action: #selector(liveStreamingPreview(_:)), target: self)
         let recent = NSMenu(title: "Open Recent")
         recent.delegate = self
         add("Clear Menu", to: recent, action: #selector(NSDocumentController.clearRecentDocuments(_:)))
@@ -171,6 +198,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         let view = NSMenu(title: "View")
         add("Reload", to: view, action: #selector(reload(_:)), key: "r", target: self)
+        add("Review Changes", to: view, action: #selector(reviewChanges(_:)), key: "r", modifiers: [.command, .shift], target: self)
         add("Toggle Outline", to: view, action: #selector(toggleOutline(_:)), key: "o", modifiers: [.command, .option], target: self)
         view.addItem(.separator())
         add("Zoom In", to: view, action: #selector(zoomIn(_:)), key: "+", target: self)

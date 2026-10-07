@@ -26,6 +26,12 @@ struct SettingsView: View {
             }
             Section("Integrations") {
                 VStack(alignment: .leading, spacing: 10) {
+                    IntegrationHeading(title: "Live streaming", symbol: "dot.radiowaves.left.and.right",
+                                       subtitle: "Follow an editor’s Marked-compatible preview stream.")
+                    Button("Open Live Preview") { (NSApp.delegate as? AppDelegate)?.showLiveStreamingPreview() }
+                        .padding(.leading, 40)
+                }.padding(.vertical, 4)
+                VStack(alignment: .leading, spacing: 10) {
                     IntegrationHeading(title: "Finder Quick Look", symbol: "doc.viewfinder",
                                        subtitle: "Preview Markdown in Finder with the Space bar.")
                     Button("Open Extension Settings…") { integration.openQuickLookSettings() }

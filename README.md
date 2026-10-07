@@ -6,9 +6,10 @@ A small, read-only Markdown viewer for macOS 14 and later. Open files written by
 - Automatic refresh, including editors that replace files atomically.
 - Tables, task lists, links, code blocks, footnotes, and blockquotes.
 - Sidebar and top-bar outline navigation, find, zoom, light/dark appearance, and a direct full-width toggle.
-- Persistent highlights for saved changes, with previous text, deletions, next/previous navigation, and Mark Reviewed.
+- Highlights for saved changes, with previous text, deletions, next/previous navigation, and individual or whole-document acknowledgement.
 - A bundled modern Finder Quick Look preview extension.
 - A Drafts URL action that sends previews without creating temporary files.
+- Live streaming (new in 1.1) through the public Marked-compatible channel; Drafts is the tested integration.
 
 ## Install and use
 
@@ -21,8 +22,49 @@ Open a Markdown file through Finder's **Open With → MDView**, or use **File �
 The setup guide explains the optional Quick Look extension and Drafts action;
 both are also available in Settings. You can return to the guide at any time.
 
-MDView 1.0 is the macOS release. A possible version 2.0 may add iOS while retaining
+MDView 1.x targets macOS. A possible version 2.0 may add iOS while retaining
 the shared parser and rendering code.
+
+## See it in action
+
+### A simple Markdown reader
+
+Open documents from your editor or coding agent. Tables, lists, links, and code
+blocks render in a native, read-only window. Update status and word count stay
+in the footer; reading controls stay in the toolbar.
+
+![MDView displaying a sample Markdown document with a table and checklist](Assets/Media/viewer.jpg)
+
+### Find your place with the outline
+
+Use the sidebar for a persistent document outline, or the **Outline** dropdown
+for a quick jump to a heading.
+
+![MDView outline sidebar showing the headings in a sample document](Assets/Media/outline-sidebar.jpg)
+
+### See what changed
+
+Saved files refresh automatically. Added and edited text is highlighted, and
+**Review Changes** shows previous text, deletions, and navigation between changes.
+**Mark This Reviewed** clears one highlight and advances to the next change;
+**Mark All Reviewed** acknowledges the remaining changes. Neither modifies the file.
+
+![MDView showing highlighted saved edits and the before-and-after change review panel](Assets/Media/change-review.jpg)
+
+### Live streaming
+
+**New in 1.1.**
+
+Keep MDView beside Drafts and see headings, lists, and tables update as you write.
+**Pause** holds the current preview; **Resume** catches up to the latest text.
+There is no export step and no temporary Markdown file to manage.
+
+![Drafts and MDView showing live typing, Markdown tables, and Pause/Resume](Assets/Media/live-streaming.gif)
+
+[Watch or download the 25-second MP4 demo](Assets/Media/live-streaming.mp4).
+Recorded from the real Drafts and MDView windows with a disposable sample;
+idle time is trimmed, and the pointer is hidden.
+See [live streaming setup and compatibility](#live-streaming-and-drafts) below.
 
 ## Build and run
 
@@ -67,7 +109,7 @@ Settings offers **System**, **Light**, and **Dark** document appearance. This pr
 
 Documents open at full width by default. Comfortable width caps long paragraphs. The **↔ width button** in the top bar switches the current window to full width; Settings chooses the default for newly opened documents. Tables fill the available reading width and wrap at word boundaries, with horizontal scrolling when necessary.
 
-File-backed documents refresh automatically, including atomic saves. MDView compares their rendered contents with the version you last reviewed. Added blocks use green highlights; edited blocks use amber with changed words marked. The top-bar changes button shows previous text and deletions and can jump to a change. **Mark Reviewed** clears the highlights and establishes a new baseline. The baseline is held for the current document session, and changes accumulate across saves until reviewed. Drafts previews are snapshots and are not watched.
+File-backed documents refresh automatically, including atomic saves. MDView compares their rendered contents with the version you last reviewed. Added blocks use green highlights; edited blocks use amber with changed words marked. The top-bar changes button shows previous text and deletions and can jump to a change. **Mark This Reviewed** acknowledges one change and advances to the next, including deletions. **Mark All Reviewed** clears all remaining highlights. Acknowledgement advances an in-memory comparison baseline; if reviewed text changes again, it returns for review against the text you acknowledged. The baseline is held for the current document session, and changes accumulate across saves until reviewed. Drafts URL previews are snapshots; live streaming follows the editor separately.
 
 For very large documents, review falls back to comparison by section position and labels that limitation in the panel.
 
@@ -85,13 +127,35 @@ Set `MDVIEW_SIGNING_IDENTITY`, `MDVIEW_TEAM_ID`, and `MDVIEW_NOTARY_PROFILE` for
 
 The icon uses the public-domain [Markdown Mark](https://github.com/dcurtis/markdown-mark) with a loupe over its enlarged arrow. `App/AppIcon.icon` is the editable four-layer Icon Composer document for macOS and future iOS use. Glass translucency is 35%; the rim has specular lighting, and the arrow stays crisp. Xcode compiles its appearance variants and legacy fallback icon. The flat vector reference and geometry metadata are in `Assets/IconDesign/`.
 
-## Drafts
+## Live streaming and Drafts
 
 See [the Drafts action setup](Integrations/Drafts/README.md). URL preview:
 
 ```text
 mdview://preview?text=URL_ENCODED_MARKDOWN&title=URL_ENCODED_TITLE
 ```
+
+For live typing previews, enable **Marked streaming preview** in **Drafts Settings
+→ General**, then choose **File → Live Streaming Preview** in MDView (also available
+in Settings and the welcome window). Drafts may require Marked to be installed
+to enable its stream, but Marked can stay closed. No Marked upgrade is needed.
+MDView independently implements the publicly documented
+[Marked streaming protocol](https://markedapp.com/help/Streaming_Preview), created
+by Brett Terpstra, using its `mkStreamingPreview` channel. MDView is not affiliated
+with or endorsed by Marked. It reads that named channel only while the live
+window is open and unpaused; it never reads or writes your ordinary clipboard. **Pause** keeps the
+current preview, and **Resume** catches up to the latest streamed text. Other
+editors using the same channel are accepted too; their compatibility has not
+been manually verified. The footer displays the editor’s optional source
+metadata, or “Live stream” when none is supplied.
+
+An optional Drafts URL action can open this window with `mdview://stream`.
+Opening it again reuses the live window. Live streams do not create files or
+change drafts. Unlike saved-file change review, they show the current text
+without accumulating highlights across different drafts. The channel does not
+identify drafts by UUID, so it cannot pin a preview to a particular draft.
+Relative images have no document folder to resolve against; remote images
+retain the usual per-window opt-in.
 
 ## Rendering and iOS
 

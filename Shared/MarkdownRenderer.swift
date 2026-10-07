@@ -13,6 +13,7 @@ struct RenderedMarkdown: Sendable {
     let headings: [MarkdownHeading]
     let wordCount: Int
     var changes = ChangeSummary()
+    var comparisonBaseline: [ReadingUnit]?
 }
 
 /// Serializes native Apex conversions off the UI actor. App and Quick Look use
@@ -21,7 +22,7 @@ actor MarkdownRenderer {
     static let shared = MarkdownRenderer()
     private var stylesheet: String?
 
-    func render(_ source: String, title: String = "Markdown", wide: Bool = false, baseline: String? = nil, loadRemoteImages: Bool = false, appearance: DocumentAppearance = .system) throws -> RenderedMarkdown {
+    func render(_ source: String, title: String = "Markdown", wide: Bool = false, baseline: String? = nil, reviewedUnits: [ReadingUnit]? = nil, loadRemoteImages: Bool = false, appearance: DocumentAppearance = .system) throws -> RenderedMarkdown {
         guard source.utf8.count <= MarkdownSource.maximumBytes else { throw ReaderError.tooLarge }
         if stylesheet == nil {
             guard let cssURL = Bundle(for: RendererBundleMarker.self).url(forResource: "reader", withExtension: "css") else {
@@ -35,8 +36,16 @@ actor MarkdownRenderer {
                             level: Int(heading.tagName().dropFirst()) ?? 1)
         }
         var changes = ChangeSummary()
-        if let baseline, baseline != source {
-            changes = try DocumentChanges.annotate(current: document, baseline: parse(baseline, loadRemoteImages: loadRemoteImages))
+        let comparisonBaseline: [ReadingUnit]?
+        if let reviewedUnits {
+            comparisonBaseline = reviewedUnits
+        } else if let baseline {
+            comparisonBaseline = try DocumentChanges.snapshot(in: parse(baseline, loadRemoteImages: loadRemoteImages))
+        } else {
+            comparisonBaseline = nil
+        }
+        if let comparisonBaseline {
+            changes = try DocumentChanges.annotate(current: document, baseline: comparisonBaseline)
         }
         let body = try document.body()?.html() ?? ""
         let count = source.split(whereSeparator: \.isWhitespace).count
@@ -49,7 +58,7 @@ actor MarkdownRenderer {
         <title>\(Self.escapeHTML(title))</title><style>\(stylesheet ?? "")</style></head>
         <body class="\(wide ? "wide" : "")"><main id="document" aria-label="Markdown document">\(body)</main></body></html>
         """
-        return RenderedMarkdown(html: html, headings: headings, wordCount: count, changes: changes)
+        return RenderedMarkdown(html: html, headings: headings, wordCount: count, changes: changes, comparisonBaseline: comparisonBaseline)
     }
 
     private func parse(_ source: String, loadRemoteImages: Bool) throws -> Document {

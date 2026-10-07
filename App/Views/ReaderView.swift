@@ -4,13 +4,25 @@ struct ReaderView: View {
     @Bindable var reader: ReaderState
     @FocusState private var searchFocused: Bool
     @AppStorage(ReaderPreferences.appearanceKey, store: ReaderPreferences.defaults) private var documentAppearance = DocumentAppearance.system
-    @State private var showChanges = false
 
     var body: some View {
         VStack(spacing: 0) {
-            controls
+            ReaderToolbar(reader: reader)
             Divider()
             if reader.showFind { findBar; Divider() }
+            if reader.isStreamingPreview && !reader.streamPaused && (!reader.streamIsReceiving || reader.streamError != nil) {
+                HStack(alignment: .top, spacing: 10) {
+                    Image(systemName: reader.streamError == nil ? "info.circle" : "exclamationmark.triangle")
+                        .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(reader.streamError == nil ? "Waiting for a live stream" : "Live preview unavailable").fontWeight(.medium)
+                        Text(reader.streamError ?? "Enable your editor’s Marked streaming preview integration, then start editing. In Drafts, use Settings → General. Marked can stay closed.")
+                            .foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 0)
+                }.font(.callout).padding(12).background(.quaternary)
+                Divider()
+            }
             if reader.imagePermissionRequired {
                 HStack {
                     Image(systemName: "photo")
@@ -36,6 +48,8 @@ struct ReaderView: View {
                     ProgressView("Rendering Markdown…").frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
+            Divider()
+            ReaderStatusBar(reader: reader)
         }
         .frame(minWidth: 480, minHeight: 300)
         .preferredColorScheme(documentAppearance == .system ? nil : (documentAppearance == .dark ? .dark : .light))
@@ -44,63 +58,6 @@ struct ReaderView: View {
         .onChange(of: reader.wide) { reader.render() }
         .onChange(of: reader.loadRemoteImages) { reader.render() }
         .onChange(of: reader.showFind) { searchFocused = reader.showFind }
-    }
-
-    private var controls: some View {
-        HStack(spacing: 10) {
-            Button { reader.showOutline.toggle() } label: { Image(systemName: "sidebar.left") }
-                .help("Toggle outline (⌥⌘O)").accessibilityLabel("Toggle outline")
-            if let headings = reader.rendered?.headings, !headings.isEmpty {
-                Menu {
-                    ForEach(headings) { heading in
-                        Button(String(repeating: "  ", count: max(0, heading.level - 1)) + heading.title) {
-                            reader.navigate(to: heading.id)
-                        }
-                    }
-                } label: { Label("Outline", systemImage: "list.bullet.indent") }
-                .menuStyle(.borderlessButton).fixedSize()
-                .help("Jump to a heading without opening the sidebar")
-            }
-            Spacer(minLength: 8)
-            if reader.fileURL != nil {
-                Button { showChanges.toggle() } label: {
-                    Label(reader.changes.count == 0 ? "Live" : "\(reader.changes.count) changes", systemImage: "arrow.triangle.2.circlepath")
-                        .font(.caption).foregroundStyle(reader.changes.count == 0 ? Color.secondary : Color.orange)
-                }
-                .help("Files refresh automatically. Review changes since the last version you marked reviewed.")
-                .popover(isPresented: $showChanges) { ChangesView(reader: reader, dismiss: { showChanges = false }) }
-                .fixedSize()
-            }
-            if let rendered = reader.rendered {
-                Text("\(rendered.wordCount.formatted()) words").font(.caption).foregroundStyle(.secondary)
-            }
-            Button { reader.showFind.toggle() } label: { Image(systemName: "magnifyingglass") }
-                .help("Find (⌘F)").accessibilityLabel("Find in document")
-            Button { reader.wide.toggle() } label: {
-                Image(systemName: "arrow.left.and.right")
-                    .foregroundStyle(reader.wide ? Color.accentColor : Color.secondary)
-            }
-            .help(reader.wide ? "Use comfortable reading width" : "Use full window width")
-            .accessibilityLabel(reader.wide ? "Use comfortable reading width" : "Use full window width")
-            .accessibilityValue(reader.wide ? "Full width" : "Comfortable width")
-            Menu {
-                Toggle("Full Width", isOn: $reader.wide)
-                Toggle("Load Remote Images", isOn: $reader.loadRemoteImages)
-                    .help("For this document only. HTTPS image hosts can see your IP address and that you opened their image. Off each time a document is opened.")
-                Button("Zoom In") { reader.changeZoom(by: 0.1) }
-                Button("Zoom Out") { reader.changeZoom(by: -0.1) }
-                Button("Actual Size") { reader.zoom = 1 }
-                if let url = reader.fileURL {
-                    Divider()
-                    Button("Reload") { reader.reload() }
-                    Button("Reveal in Finder") { NSWorkspace.shared.activateFileViewerSelecting([url]) }
-                    Button("Grant Image Folder…") { reader.allowImageFolder() }
-                }
-            } label: { Image(systemName: "ellipsis.circle") }
-            .menuStyle(.borderlessButton).fixedSize().help("Reading options").accessibilityLabel("Reading options")
-        }
-        .buttonStyle(.borderless)
-        .padding(.horizontal, 16).padding(.vertical, 10)
     }
 
     private var findBar: some View {

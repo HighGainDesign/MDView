@@ -22,3 +22,23 @@ The action sends a snapshot to MDView without writing a file. Run it again after
 `Preview in MDView.js` is an equivalent Script-step alternative. Use one approach per action.
 
 Drafts’ [URL step documentation](https://docs.getdrafts.com/docs/actions/steps/advanced) explains URL-encoded template tags.
+
+## Live preview
+
+For previews that follow typing, enable **Marked streaming preview** in **Drafts
+Settings → General**. Drafts may require Marked to be installed to expose the
+option; Marked can stay closed and no upgrade is needed. Then choose **File →
+Live Streaming Preview** in MDView. The welcome window and Settings offer the same
+command.
+
+To open the live window from Drafts, create an additional macOS-only URL action
+with `mdview://stream`, **Open in Drafts** off, and **Do Nothing** after success.
+This starts or resumes one live window rather than creating a new snapshot.
+The existing bundled **Preview in MDView** action remains a snapshot action.
+
+The preview follows Drafts’ active editor through its Marked-compatible named
+clipboard. **Pause** freezes the preview; **Resume** catches up. Only the named
+stream is read, not your ordinary clipboard; MDView never writes to either.
+Closing the live window stops reading. No draft is modified and no temporary
+Markdown file is created. Live previews do not accumulate saved-change highlights
+because the stream can switch between drafts and has no stable draft identifier.
