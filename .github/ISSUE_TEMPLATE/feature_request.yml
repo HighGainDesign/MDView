@@ -1,0 +1,17 @@
+name: Feature request
+description: Suggest an improvement to the Markdown reading workflow.
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Reading problem
+      description: Describe the task you are trying to accomplish.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Suggested change
+      description: Explain the behavior you would like and where it belongs.
+    validations:
+      required: true

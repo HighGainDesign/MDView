@@ -1,0 +1,29 @@
+{
+  "colors": {
+    "bg": "#14161C",
+    "bg_dark": "#0B0C10",
+    "cream": "#F4F1EA",
+    "amber": "#F2A93B",
+    "glass": "#232838"
+  },
+  "geometry": {
+    "canvas": 1024,
+    "mark_bbox": [
+      90,
+      376,
+      412,
+      649
+    ],
+    "lens_center": [
+      655.7,
+      512.0
+    ],
+    "rim_outer_r": 276.3,
+    "rim_inner_r": 238.2,
+    "glass_r": 257.2,
+    "lens_bbox_x": [
+      379,
+      932
+    ]
+  }
+}

@@ -1,0 +1,32 @@
+name: macOS tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Prepare project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+      - name: Run isolated macOS tests
+        run: |
+          xcodebuild -project MDView.xcodeproj -scheme MDView -configuration Debug \
+            -destination 'platform=macOS' -derivedDataPath "$RUNNER_TEMP/MDView-tests" \
+            CODE_SIGN_IDENTITY=- test > "$RUNNER_TEMP/tests.log" 2>&1 || { tail -80 "$RUNNER_TEMP/tests.log"; exit 1; }
