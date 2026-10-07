@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.6 — Preview
+
+- Configure tag-driven GitHub builds with Developer ID signing, Apple
+  notarization, stapled tickets, and published DMG checksums.
+- Restrict release credentials to approved version tags and mark 0.x releases
+  as previews automatically.
+
+The reader and Quick Look behavior are unchanged from 0.2.5.
+
 ## 0.2.5 — Preview
 
 Initial public-release candidate for the macOS reader:

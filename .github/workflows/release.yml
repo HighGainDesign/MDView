@@ -141,6 +141,10 @@ jobs:
             echo 'This release already exists; refusing to replace published files.' >&2
             exit 1
           fi
+          release_flags=()
+          if [[ "$RELEASE_VERSION" == 0.* ]]; then
+            release_flags+=(--prerelease)
+          fi
           gh release create "$RELEASE_TAG" \
             "dist/MDView-$RELEASE_VERSION.dmg" "dist/MDView-$RELEASE_VERSION.dmg.sha256" \
-            --verify-tag --title "MDView $RELEASE_VERSION" --generate-notes
+            --verify-tag --title "MDView $RELEASE_VERSION" --generate-notes "${release_flags[@]}"

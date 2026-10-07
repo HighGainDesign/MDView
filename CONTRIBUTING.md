@@ -62,11 +62,13 @@ copies in Open With and Extensions.
 ## Releases
 
 Maintainers use `script/release.sh` to build universal binaries, sign the app and
-extension, notarize both the app and DMG, and staple their tickets. The prepared
-GitHub release workflow runs on a matching `vX.Y.Z` tag from the default branch
-once its protected environment and credentials have been configured. Hosted
-signing remains unverified until its first successful run. Contributions do not
-need access to release credentials.
+extension, notarize both the app and DMG, and staple their tickets. The GitHub
+release workflow runs on a matching `vX.Y.Z` tag from the default branch. Its
+release environment is restricted to approved version tags; Apple credentials
+are encrypted environment secrets. Every tagged release runs tests before
+loading credentials, validates signatures and notarization, and publishes the
+DMG with its checksum. Versions below 1.0 are marked as previews. Contributions
+do not need access to release credentials.
 
 By submitting a contribution, you agree to license it under the repository's
 MIT license. Retain third-party license notices when changing dependencies.
