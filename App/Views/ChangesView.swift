@@ -8,8 +8,14 @@ struct ChangesView: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Text("Review Changes").font(.headline)
+                    .accessibilityAddTraits(.isHeader)
                 Spacer()
                 Text("\(reader.changes.count) remaining").foregroundStyle(.secondary)
+                Button(action: dismiss) { Image(systemName: "xmark") }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel("Close review")
+                    .help("Close review (Esc)")
+                    .keyboardShortcut(reader.showFind ? nil : KeyboardShortcut(.escape, modifiers: []))
             }
             if let change = reader.selectedChange {
                 HStack {
@@ -28,16 +34,16 @@ struct ChangesView: View {
                 }
                 ScrollView {
                     changeDetail(change)
-                }.frame(maxHeight: 320)
+                }.frame(maxHeight: .infinity)
                 Divider()
-                HStack {
-                    Button("Mark All Reviewed") { reader.markReviewed() }
-                        .help("Acknowledge every remaining change in this document")
-                    Spacer()
+                VStack(spacing: 8) {
                     Button("Mark This Reviewed") { reader.markCurrentChangeReviewed() }
                         .buttonStyle(.borderedProminent)
                         .help("Clear this highlight and advance to the next change")
+                    Button("Mark All Reviewed") { reader.markReviewed() }
+                        .help("Acknowledge every remaining change in this document")
                 }.disabled(reader.isRendering)
+                    .frame(maxWidth: .infinity)
             } else {
                 Label("All changes reviewed", systemImage: "checkmark.circle")
                     .font(.title3).padding(.vertical, 6)
@@ -50,7 +56,10 @@ struct ChangesView: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
-        .font(.callout).padding(18).frame(width: 440)
+        .font(.callout).padding(16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("review-panel")
     }
 
     private func changeDetail(_ change: DocumentChange) -> some View {
@@ -61,7 +70,7 @@ struct ChangesView: View {
                     .foregroundStyle(change.kind == .removed ? .red : (change.kind == .added ? .green : .orange))
                 Spacer()
                 if let target = change.targetID {
-                    Button("Show in Document") { reader.navigate(to: target); dismiss() }
+                    Button("Show in Document") { reader.navigate(to: target) }
                 }
             }
             if !change.before.isEmpty {

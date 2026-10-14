@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.2.0 — 2026-10-14
+
+- Local images use normal macOS filesystem access, including relative paths, absolute paths, local file URLs and symlinks. Image-folder grants and document-folder boundaries have been removed; macOS privacy and file permissions still apply. Remote images remain off by default.
+- Click a task checkbox to allow automatic checkmark saves for that document. Cancel makes no change; confirming also saves the first tick. Only the marker changes; Undo/Redo is available.
+- “Stop Saving Checkmarks” keeps saved progress and asks again before future checkbox changes; the action replaces the ambiguous “Read Only” label.
+- Checking a task keeps the document at its current scroll position, without briefly jumping to the top.
+- Change review uses a docked sidebar, moving below the document in narrow windows, so review controls no longer cover the changed text.
+- Undo and Redo act on an active text field before checklist history, so editing a Find query does not change saved checkmarks.
+- Find returns keyboard focus to its search field when requested again after navigating the document, including when its bar is already open.
+- Task checkboxes expose their text as accessible names, have larger targets and keep keyboard focus after a save or canceled consent. Outline levels, settings help and reduced-motion scrolling are improved.
+- A Markdown link immediately following a table no longer appears a second time as a generated table caption.
+- Stale checkbox clicks are refused and refreshed when another writer changed the file. Encodings, line endings and permissions are preserved. Quick Look, snapshots and live streams remain read-only.
+
 ## 1.1.0 — 2026-10-07
 
 - Review saved changes individually with Previous/Next, Mark This Reviewed, and Mark All Reviewed. Acknowledgement advances the in-memory baseline without editing the file; later edits to reviewed text reappear for review.

@@ -47,14 +47,19 @@ enum HTMLAdapter {
             if tag == "input" {
                 guard try element.attr("type") == "checkbox" else { try element.remove(); continue }
                 try element.attr("disabled", "")
-                try element.attr("aria-label", element.hasAttr("checked") ? "Completed task" : "Incomplete task")
+                // Name the task; the native checkbox role/value announces its state.
+                if let parent = element.parent(), let copy = try SwiftSoup.parseBodyFragment(parent.html()).body() {
+                    try copy.select("ul, ol").remove()
+                    let label = try copy.text()
+                    try element.attr("aria-label", label.isEmpty ? "Task" : label)
+                }
             }
             if tag == "img" {
                 let src = try element.attr("src")
                 // Private comparison metadata preserves the Markdown image URL
                 // without loading it when remote resources are disabled.
                 try element.attr("data-mdview-image-source", src)
-                if !src.isEmpty, URLComponents(string: src)?.scheme == nil, !src.hasPrefix("/"),
+                if LocalImage.isLocalReference(src),
                    let encoded = src.addingPercentEncoding(withAllowedCharacters: .alphanumerics) {
                     try element.attr("src", "mdview-resource://local/" + encoded)
                 } else if loadRemoteImages, let remote = URLComponents(string: src),
@@ -66,6 +71,18 @@ enum HTMLAdapter {
                             !src.lowercased().hasPrefix("data:image/gif;base64,") &&
                             !src.lowercased().hasPrefix("data:image/webp;base64,") {
                     try element.removeAttr("src")
+                }
+            }
+        }
+        // Apex 1.1.34 can mistake a following Markdown link for a table
+        // caption while also emitting the real link paragraph. Keep that
+        // paragraph and remove only its duplicated, generated caption.
+        for figure in try document.select("figure.table-figure").array() {
+            guard let next = try figure.nextElementSibling(), next.tagName() == "p",
+                  try next.select("a").size() == 1 else { continue }
+            for caption in try figure.select("figcaption").array() {
+                if try caption.text() == next.text() {
+                    try caption.remove()
                 }
             }
         }

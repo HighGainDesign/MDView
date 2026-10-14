@@ -1,10 +1,11 @@
 # MDView
 
-A small, read-only Markdown viewer for macOS 14 and later. Open files written by your agents, or preview a draft from Drafts.
+A small Markdown viewer for macOS 14 and later, read-only by default. Open files written by your agents, or preview a draft from Drafts.
 
 - Native document windows, Open Recent, and multiple files.
 - Automatic refresh, including editors that replace files atomically.
 - Tables, task lists, links, code blocks, footnotes, and blockquotes.
+- Optional checklist saves with first-click consent, automatic per-tick saving, and Undo/Redo.
 - Sidebar and top-bar outline navigation, find, zoom, light/dark appearance, and a direct full-width toggle.
 - Highlights for saved changes, with previous text, deletions, next/previous navigation, and individual or whole-document acknowledgement.
 - A bundled modern Finder Quick Look preview extension.
@@ -22,15 +23,16 @@ Open a Markdown file through Finder's **Open With → MDView**, or use **File �
 The setup guide explains the optional Quick Look extension and Drafts action;
 both are also available in Settings. You can return to the guide at any time.
 
-MDView 1.x targets macOS. A possible version 2.0 may add iOS while retaining
-the shared parser and rendering code.
+MDView 1.x targets macOS. Version 2.0 is planned for macOS and iOS with shared
+parser and rendering code. See the [roadmap](ROADMAP.md) for the planned
+accessibility, Read Aloud, localization and design work.
 
 ## See it in action
 
 ### A simple Markdown reader
 
 Open documents from your editor or coding agent. Tables, lists, links, and code
-blocks render in a native, read-only window. Update status and word count stay
+blocks render in a native window, read-only until you allow checklist saves. Update status and word count stay
 in the footer; reading controls stay in the toolbar.
 
 ![MDView displaying a sample Markdown document with a table and checklist](Assets/Media/viewer.jpg)
@@ -46,10 +48,12 @@ for a quick jump to a heading.
 
 Saved files refresh automatically. Added and edited text is highlighted, and
 **Review Changes** shows previous text, deletions, and navigation between changes.
+The panel docks beside the document, or below it in narrow windows, keeping the
+changed text visible. Drag the divider to resize it; press Escape to close it.
 **Mark This Reviewed** clears one highlight and advances to the next change;
 **Mark All Reviewed** acknowledges the remaining changes. Neither modifies the file.
 
-![MDView showing highlighted saved edits and the before-and-after change review panel](Assets/Media/change-review.jpg)
+![MDView showing highlighted saved edits beside the docked change review sidebar](Assets/Media/change-review.jpg)
 
 ### Live streaming
 
@@ -65,6 +69,30 @@ There is no export step and no temporary Markdown file to manage.
 Recorded from the real Drafts and MDView windows with a disposable sample;
 idle time is trimmed, and the pointer is hidden.
 See [live streaming setup and compatibility](#live-streaming-and-drafts) below.
+
+## Checklists
+
+**New in 1.2.** Save checklist progress directly to Markdown so agents and other
+apps can see which tasks you have completed.
+
+Click a checkbox in a file-backed checklist. The first click asks whether to
+**Save Checkmarks** to that file. Cancel leaves it unchanged; confirming saves
+that first tick and enables automatic saves for this open document. Each tick
+or untick then saves only the task marker (`[ ]` or `[x]`), so agents can read
+your progress. **Undo** in the notice or **Edit → Undo Checkbox Change** (⌘Z)
+reverses a tick; **Redo Checkbox Change** uses ⇧⌘Z. Select **Stop Saving Checkmarks**
+to stop automatic saves and keep your saved progress. Clicking a checkbox again
+asks for consent before saving. Closing the document resets the choice. You can also
+use **Reading options (…) → Save Checkmarks Automatically**.
+
+Only task markers are changed. Markdown text, encodings, line endings and file
+permissions are preserved. MDView checks the current file before writing; if
+an agent changed it since the displayed version, the click is refused and the
+file is refreshed. External edits clear checkbox Undo history. Tasks that cannot
+be mapped safely to their original Markdown remain disabled.
+
+Quick Look, Drafts snapshots and live streams remain read-only. Checklist saves
+participate in the existing saved-change comparison, like other file changes.
 
 ## Build and run
 
@@ -165,11 +193,11 @@ There is no runtime CDN, external parser process, or bundled JavaScript parser. 
 
 ## Current boundaries
 
-- Markdown is never edited or saved by MDView.
+- Documents are read-only by default. Explicit checkmark consent changes only task markers in a user-selected file; arbitrary text editing is not supported.
 - UTF-8 and BOM-marked UTF-16 files are supported, up to 8 MB.
 - Raw HTML is omitted. Scripts, plugins, file includes, syntax-highlighting tools, and math rendering are disabled.
 - Callout markers such as `[!NOTE]` remain readable inside ordinary blockquotes; specialized callout styling is deferred.
-- Images linked to websites are off by default. In the current document’s **Reading options (…) → Load Remote Images**, you can opt in to HTTPS images. Hosts can see your IP address and image requests; MDView sends no document referrer. This choice lasts only until you close the document, and Quick Look never loads remote images. PNG, JPEG, GIF, and WebP images in the document’s folder load automatically when macOS permits access. If folder permission is needed, use **Grant Image Folder…**; MDView retains read-only access to the chosen folder. Relative paths and symlinks must stay within the document folder or an explicitly granted image folder. Quick Look previews text and embedded data images.
+- Images linked to websites are off by default. In the current document’s **Reading options (…) → Load Remote Images**, you can opt in to HTTPS images. Hosts can see your IP address and image requests; MDView sends no document referrer. This choice lasts only until you close the document, and Quick Look never loads remote images. Local images load automatically from relative paths, absolute paths, local `file://` URLs and symlinks wherever macOS permits access. There are no MDView image-folder grants or document-folder boundaries; image formats are handled by WebKit. The directly distributed macOS app uses normal filesystem access, subject to macOS privacy permissions and file permissions. Quick Look previews text and embedded data images.
 - Links open in the browser/mail app; relative file links open as another document subject to macOS file permissions.
 - Code blocks use monospace styling; syntax coloring, PDF export, and an iOS app are future work.
 

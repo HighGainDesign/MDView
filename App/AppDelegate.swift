@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenuItemValidation {
     private var welcome: NSWindowController?
     private var settings: NSWindowController?
     private var setup: SetupWindowController?
@@ -83,6 +83,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         welcome?.close()
     }
 
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        func saving() -> Bool {
+            NSDocumentController.shared.documents.compactMap { $0 as? MarkdownDocument }.contains { $0.reader.checklistSaving }
+        }
+        guard saving() else { return .terminateNow }
+        Task {
+            while saving() { try? await Task.sleep(for: .milliseconds(10)) }
+            sender.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
+    }
+
     func showLiveStreamingPreview() {
         if let document = NSDocumentController.shared.documents.compactMap({ $0 as? MarkdownDocument })
             .first(where: { $0.reader.isStreamingPreview }) {
@@ -130,6 +142,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func find(_ sender: Any?) { reader?.showFind = true }
     @objc private func reload(_ sender: Any?) { reader?.reload() }
     @objc private func zoomIn(_ sender: Any?) { reader?.changeZoom(by: 0.1) }
+    private var undoActions: ReaderUndo { ReaderUndo(responder: NSApp.keyWindow?.firstResponder, reader: reader) }
+    @objc private func undoCheckbox(_ sender: Any?) { undoActions.undo() }
+    @objc private func redoCheckbox(_ sender: Any?) { undoActions.redo() }
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(undoCheckbox(_:)) {
+            menuItem.title = undoActions.isEditingText ? "Undo" : "Undo Checkbox Change"
+            return undoActions.canUndo
+        }
+        if menuItem.action == #selector(redoCheckbox(_:)) {
+            menuItem.title = undoActions.isEditingText ? "Redo" : "Redo Checkbox Change"
+            return undoActions.canRedo
+        }
+        return true
+    }
+
     @objc private func zoomOut(_ sender: Any?) { reader?.changeZoom(by: -0.1) }
     @objc private func actualSize(_ sender: Any?) { reader?.zoom = 1 }
     @objc private func toggleOutline(_ sender: Any?) { reader?.showOutline.toggle() }
@@ -190,6 +217,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         attach(file, to: bar)
 
         let edit = NSMenu(title: "Edit")
+        add("Undo Checkbox Change", to: edit, action: #selector(undoCheckbox(_:)), key: "z", target: self)
+        add("Redo Checkbox Change", to: edit, action: #selector(redoCheckbox(_:)), key: "z", modifiers: [.command, .shift], target: self)
+        edit.addItem(.separator())
         add("Copy", to: edit, action: #selector(NSText.copy(_:)), key: "c")
         add("Select All", to: edit, action: #selector(NSText.selectAll(_:)), key: "a")
         edit.addItem(.separator())

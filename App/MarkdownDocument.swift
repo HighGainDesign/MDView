@@ -54,7 +54,19 @@ final class MarkdownDocument: NSDocument {
         (NSApp.delegate as? AppDelegate)?.documentDidOpen()
     }
 
+    private var checklistClosePending = false
+
     override func close() {
+        if reader.checklistSaving {
+            guard !checklistClosePending else { return }
+            checklistClosePending = true
+            Task { [self] in
+                while reader.checklistSaving { try? await Task.sleep(for: .milliseconds(10)) }
+                checklistClosePending = false
+                close()
+            }
+            return
+        }
         reader.stop()
         super.close()
     }

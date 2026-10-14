@@ -1,8 +1,9 @@
 # Contributing to MDView
 
-MDView is a small, read-only Markdown viewer. Changes should make reading faster
-or clearer while keeping the app simple. Version 1.0 supports macOS; a possible
-2.0 may bring the same reader to iOS.
+MDView is a small Markdown viewer, read-only by default. Explicit checklist saves
+are the exception and change only task markers. Changes should make reading faster
+or clearer while keeping the app simple. Version 1.x supports macOS; version 2.0
+is planned for macOS and iOS. See [ROADMAP.md](ROADMAP.md).
 
 ## Issues and proposals
 
@@ -12,7 +13,7 @@ the app, Finder Quick Look, or the Drafts action. Replace private content with a
 minimal example before sharing it.
 
 Discuss substantial features before opening a large pull request. Specialized
-Markdown extensions, editing, and export workflows are outside the initial
+Markdown extensions, arbitrary text editing, and export workflows are outside the initial
 release scope.
 
 ## Local development
@@ -51,8 +52,10 @@ include a screenshot made with a non-private sample document.
 
 Run the relevant tests and check Finder Quick Look when shared rendering or
 extension behavior changes. Verify light/dark appearance, tables, links, and
-automatic refresh when they are affected. A change must preserve read-only file
-handling, bounded image access, and inert HTML/scripts.
+automatic refresh when they are affected. Preserve read-only defaults, the
+consent-gated task-marker exception, bounded image reads, and inert HTML/scripts.
+The directly distributed main app uses normal macOS filesystem permissions; the
+Quick Look extension retains its required sandbox.
 
 Do not commit signing certificates, private keys, provisioning profiles, build
 products, personal settings, or local agent notes. After testing, close and
@@ -69,6 +72,13 @@ are encrypted environment secrets. Every tagged release runs tests before
 loading credentials, validates signatures and notarization, and publishes the
 DMG with its checksum. Versions below 1.0 are marked as previews. Contributions
 do not need access to release credentials.
+
+Local packaging defaults to the Keychain profile selected by
+`MDVIEW_NOTARY_PROFILE` (default: `Notarize`). Alternatively, supply an existing
+App Store Connect API key file through `MDVIEW_NOTARY_API_KEY_PATH`, with
+`MDVIEW_NOTARY_API_KEY_ID` and `MDVIEW_NOTARY_ISSUER_ID`. Keep private key files
+outside the repository. This option uses the key directly without creating a
+new Keychain profile.
 
 By submitting a contribution, you agree to license it under the repository's
 MIT license. Retain third-party license notices when changing dependencies.

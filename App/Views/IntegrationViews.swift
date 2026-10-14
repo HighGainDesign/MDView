@@ -19,7 +19,7 @@ struct QuickLookInstructions: View {
             Text("\(number)").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                 .frame(width: 14)
             Text(text).fixedSize(horizontal: false, vertical: true)
-        }.font(.callout)
+        }.font(.callout).accessibilityElement(children: .combine)
     }
 }
 
@@ -33,7 +33,7 @@ struct IntegrationHeading: View {
             Image(systemName: symbol).font(.title2).foregroundStyle(.tint)
                 .frame(width: 28).accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 4) {
-                Text(title).font(.headline)
+                Text(title).font(.headline).accessibilityAddTraits(.isHeader)
                 Text(subtitle).font(.callout).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }

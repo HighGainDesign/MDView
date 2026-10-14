@@ -8,16 +8,26 @@ final class ReaderState {
     var fileURL: URL? {
         didSet {
             guard fileURL != oldValue else { return }
-            grantedFolder?.stopAccessingSecurityScopedResource()
-            grantedFolder = fileURL.flatMap { ImageFolderAccess.restore(for: $0) }
-            imageRoot = grantedFolder ?? fileURL?.deletingLastPathComponent()
-            imagePermissionRequired = false
+            cancelChecklistConfirmation()
+            checklistMode = false
+            checklistSaving = false; pendingChecklistSource = nil
+            checklistUndo.removeAll(); checklistRedo.removeAll()
+            localImageError = nil
         }
     }
     var rendered: RenderedMarkdown?
     var errorMessage: String?
     var showOutline = false
-    var showFind = false
+    private var findVisible = false
+    private(set) var findFocusGeneration = 0
+    // Cmd-F is a focus request even when the Find bar is already visible.
+    var showFind: Bool {
+        get { findVisible }
+        set {
+            findVisible = newValue
+            if newValue { findFocusGeneration += 1 }
+        }
+    }
     var showChanges = false
     var searchText = ""
     var searchBackwards = false
@@ -33,14 +43,23 @@ final class ReaderState {
     var streamIsReceiving = false
     var streamSourceName: String?
     var streamError: String?
+    var checklistMode = false { didSet { checklistError = nil } }
+    var showChecklistConfirmation = false
+    private(set) var pendingChecklistConfirmation: ChecklistConfirmation?
+    private(set) var checklistSaving = false
+    var checklistError: String?
+    private var pendingChecklistSource: String?
+    private var checklistUndo: [ChecklistOperation] = []
+    private var checklistRedo: [ChecklistOperation] = []
+
+    var canUndoChecklist: Bool { checklistMode && !checklistSaving && !isRendering && !checklistUndo.isEmpty }
+    var canRedoChecklist: Bool { checklistMode && !checklistSaving && !isRendering && !checklistRedo.isEmpty }
     var zoom = 1.0
     var wide = UserDefaults.standard.object(forKey: "wideLayout") as? Bool ?? true
     var documentAppearance = DocumentAppearance.system
     var loadRemoteImages = false
-    var imageRoot: URL?
-    var imagePermissionRequired = false
-    var imageAccessGeneration = 0
-    private var grantedFolder: URL?
+    var localImageError: String?
+    var imageReloadGeneration = 0
     private var renderTask: Task<Void, Never>?
     private var readTask: Task<Void, Never>?
     private var reviewedSource: String?
@@ -97,6 +116,9 @@ final class ReaderState {
     }
 
     func acceptFileUpdate(_ text: String) {
+        if text != source && text != pendingChecklistSource {
+            checklistUndo.removeAll(); checklistRedo.removeAll()
+        }
         if reviewedSource == nil { reviewedSource = source }
         lastRefreshed = Date()
         guard text != source else { errorMessage = nil; return }
@@ -104,6 +126,98 @@ final class ReaderState {
         currentChangeIndex = -1
         render()
     }
+
+    struct ChecklistConfirmation {
+        let fileURL: URL
+        let source: String
+        let task: MarkdownTask
+        let checked: Bool
+    }
+
+    @discardableResult
+    func requestTaskChecked(_ id: Int, checked: Bool) -> Bool {
+        guard !checklistSaving, !isRendering, !showChecklistConfirmation,
+              !isStreamingPreview, let fileURL, let rendered, rendered.taskSource == source,
+              let task = rendered.tasks.first(where: { $0.id == id }), task.checked != checked else { return false }
+        if checklistMode { setTaskChecked(id, checked: checked) }
+        else {
+            pendingChecklistConfirmation = ChecklistConfirmation(fileURL: fileURL, source: source, task: task, checked: checked)
+            showChecklistConfirmation = true
+        }
+        return true
+    }
+
+    func cancelChecklistConfirmation() {
+        showChecklistConfirmation = false
+        pendingChecklistConfirmation = nil
+    }
+
+    func confirmChecklistSaving() {
+        guard let pending = pendingChecklistConfirmation else { return }
+        cancelChecklistConfirmation()
+        guard pending.fileURL == fileURL, !isStreamingPreview else { return }
+        checklistMode = true
+        guard pending.source == source else {
+            checklistError = ChecklistError.changed.localizedDescription
+            reload()
+            return
+        }
+        // The consented gesture already has a validated source descriptor.
+        // An appearance-only render need not discard that first change.
+        performChecklistChange(task: pending.task, marker: pending.checked ? 120 : 32, history: .normal, allowRendering: true)
+    }
+
+    func setTaskChecked(_ id: Int, checked: Bool) {
+        guard let rendered, rendered.taskSource == source,
+              let task = rendered.tasks.first(where: { $0.id == id }), task.checked != checked else { return }
+        performChecklistChange(task: task, marker: checked ? 120 : 32, history: .normal)
+    }
+
+    func undoChecklist() {
+        guard canUndoChecklist, let operation = checklistUndo.last else { return }
+        performChecklistChange(task: operation.task, marker: operation.marker, history: .undo)
+    }
+
+    func redoChecklist() {
+        guard canRedoChecklist, let operation = checklistRedo.last else { return }
+        performChecklistChange(task: operation.task, marker: operation.marker, history: .redo)
+    }
+
+    private func performChecklistChange(task: MarkdownTask, marker: UInt8, history: ChecklistHistory, allowRendering: Bool = false) {
+        guard checklistMode, !checklistSaving, (!isRendering || allowRendering), !isStreamingPreview, let fileURL else { return }
+        let expected = source
+        do {
+            pendingChecklistSource = try MarkdownSource.decode(MarkdownTasks.patch(Data(expected.utf8), expectedSource: expected, task: task, marker: marker))
+        } catch { checklistError = error.localizedDescription; return }
+        checklistSaving = true
+        checklistError = nil
+        Task { [weak self] in
+            do {
+                let updated = try await ChecklistFileStore.setMarker(at: fileURL, source: expected, task: task, marker: marker)
+                guard let self, self.fileURL == fileURL else { return }
+                acceptFileUpdate(updated)
+                let inverse = ChecklistOperation(task: MarkdownTask(id: task.id, utf8Offset: task.utf8Offset, marker: marker, label: task.label), marker: task.marker)
+                switch history {
+                case .normal: checklistUndo.append(inverse); checklistRedo.removeAll()
+                case .undo: if !checklistUndo.isEmpty { checklistUndo.removeLast() }; checklistRedo.append(inverse)
+                case .redo: if !checklistRedo.isEmpty { checklistRedo.removeLast() }; checklistUndo.append(inverse)
+                }
+                if checklistUndo.count > 100 { checklistUndo.removeFirst() }
+                checklistSaving = false
+                pendingChecklistSource = nil
+            } catch {
+                guard let self, self.fileURL == fileURL else { return }
+                checklistSaving = false
+                pendingChecklistSource = nil
+                checklistError = error.localizedDescription
+                checklistUndo.removeAll(); checklistRedo.removeAll()
+                reload()
+            }
+        }
+    }
+
+    private enum ChecklistHistory { case normal, undo, redo }
+    private struct ChecklistOperation { let task: MarkdownTask; let marker: UInt8 }
 
     func render() {
         renderTask?.cancel()
@@ -114,7 +228,7 @@ final class ReaderState {
         let units = fileURL == nil ? nil : reviewedUnits
         renderTask = Task { [weak self] in
             do {
-                let output = try await MarkdownRenderer.shared.render(text, title: title, wide: wide, baseline: baseline, reviewedUnits: units, loadRemoteImages: loadRemoteImages, appearance: appearance)
+                let output = try await MarkdownRenderer.shared.render(text, title: title, wide: wide, baseline: baseline, reviewedUnits: units, loadRemoteImages: loadRemoteImages, appearance: appearance, mapTasks: self?.fileURL != nil)
                 guard !Task.isCancelled else { return }
                 self?.rendered = output
                 self?.errorMessage = nil
@@ -189,6 +303,8 @@ final class ReaderState {
     }
 
     func reload() {
+        localImageError = nil
+        imageReloadGeneration += 1
         guard let fileURL else { render(); return }
         readTask?.cancel()
         readTask = Task { [weak self] in
@@ -203,34 +319,15 @@ final class ReaderState {
         }
     }
 
-    func allowImageFolder() {
-        guard let fileURL else { return }
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = false
-        panel.canChooseDirectories = true
-        panel.allowsMultipleSelection = false
-        panel.directoryURL = fileURL.deletingLastPathComponent()
-        panel.message = "macOS needs permission to read this document’s images. Choose their folder; MDView remembers read-only access to it."
-        panel.prompt = "Grant Access"
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        grantedFolder?.stopAccessingSecurityScopedResource()
-        grantedFolder = url.startAccessingSecurityScopedResource() ? url : nil
-        do { try ImageFolderAccess.remember(url, for: fileURL) }
-        catch { errorMessage = "Images are available for this session, but folder access could not be remembered: \(error.localizedDescription)" }
-        imageRoot = url
-        imagePermissionRequired = false
-        imageAccessGeneration += 1
-    }
-
     func changeZoom(by amount: Double) { zoom = min(2.0, max(0.6, zoom + amount)) }
 
     func stop() {
+        cancelChecklistConfirmation()
+        checklistMode = false
         streamPaused = true
         isStreamingPreview = false
         renderTask?.cancel()
         readTask?.cancel()
-        grantedFolder?.stopAccessingSecurityScopedResource()
-        grantedFolder = nil
     }
 }
 

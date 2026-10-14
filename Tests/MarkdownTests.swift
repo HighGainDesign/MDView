@@ -166,32 +166,15 @@ final class MarkdownTests: XCTestCase {
         XCTAssertThrowsError(try MarkdownSource.decode(Data(repeating: 65, count: MarkdownSource.maximumBytes + 1)))
     }
 
-    func testLocalImagesStayInsideGrantedFolder() throws {
-        let root = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(UUID().uuidString)
-        let file = root.appendingPathComponent("notes/plan.md")
-        XCTAssertEqual(LocalImage.resolve("../assets/image.png", documentURL: file, allowedRoot: root)?.lastPathComponent, "image.png")
-        XCTAssertNil(LocalImage.resolve("../../private.png", documentURL: file, allowedRoot: root))
-        XCTAssertNil(LocalImage.resolve("/etc/passwd", documentURL: file, allowedRoot: root))
-        XCTAssertNil(LocalImage.resolve("image.svg", documentURL: file, allowedRoot: root))
-        XCTAssertNil(LocalImage.resolve("file:///tmp/image.png", documentURL: file, allowedRoot: root))
-    }
-
-    @MainActor
-    func testLocalImagesDefaultToDocumentFolderAndRejectEscapingSymlinks() throws {
-        let workspace = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        let root = workspace.appendingPathComponent("notes")
-        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: workspace) }
-        try Data([0]).write(to: workspace.appendingPathComponent("private.png"))
-        let file = root.appendingPathComponent("plan.md")
-        let reader = ReaderState()
-        reader.fileURL = file
-        XCTAssertEqual(reader.imageRoot?.path, root.path)
-        XCTAssertNotNil(LocalImage.resolve("images/figure.png", documentURL: file, allowedRoot: root))
-        XCTAssertNil(LocalImage.resolve("../private.png", documentURL: file, allowedRoot: root))
-        try FileManager.default.createSymbolicLink(at: root.appendingPathComponent("outside"),
-                                                  withDestinationURL: workspace)
-        XCTAssertNil(LocalImage.resolve("outside/private.png", documentURL: file, allowedRoot: root))
+    func testLocalImagePathsKeepNetworkURLsOutOfFileHandler() throws {
+        let file = URL(fileURLWithPath: "/tmp/notes/plan.md")
+        XCTAssertEqual(LocalImage.resolve("../assets/image.png", documentURL: file)?.path, "/tmp/assets/image.png")
+        XCTAssertNil(LocalImage.resolve("https://example.com/image.png", documentURL: file))
+        XCTAssertNil(LocalImage.resolve("//example.com/image.png", documentURL: file))
+        XCTAssertNil(LocalImage.resolve("file://remote-host/tmp/image.png", documentURL: file))
+        XCTAssertNil(LocalImage.resolve("javascript:alert(1)", documentURL: file))
+        XCTAssertNil(LocalImage.resolve("relative.png", documentURL: nil))
+        XCTAssertEqual(LocalImage.resolve("/tmp/image.png", documentURL: nil)?.path, "/tmp/image.png")
     }
 
     @MainActor

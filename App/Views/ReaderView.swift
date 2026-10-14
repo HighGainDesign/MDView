@@ -2,7 +2,6 @@ import SwiftUI
 
 struct ReaderView: View {
     @Bindable var reader: ReaderState
-    @FocusState private var searchFocused: Bool
     @AppStorage(ReaderPreferences.appearanceKey, store: ReaderPreferences.defaults) private var documentAppearance = DocumentAppearance.system
 
     var body: some View {
@@ -23,12 +22,26 @@ struct ReaderView: View {
                 }.font(.callout).padding(12).background(.quaternary)
                 Divider()
             }
-            if reader.imagePermissionRequired {
+            if reader.checklistMode {
+                HStack(spacing: 10) {
+                    Image(systemName: "checklist")
+                    Text(reader.checklistError ?? (reader.rendered?.tasks.isEmpty == true ? "This checklist cannot be mapped safely. Checkboxes remain disabled." : "Checkmarks save to this file."))
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer()
+                    Button("Undo") { reader.undoChecklist() }.disabled(!reader.canUndoChecklist)
+                    Button("Stop Saving Checkmarks") { reader.checklistMode = false }
+                        .fixedSize()
+                        .disabled(reader.checklistSaving)
+                        .help("Keeps the checkmarks already saved. Clicking a checkbox again asks before saving further changes.")
+                }.font(.callout).padding(12).background(.quaternary)
+                Divider()
+            }
+            if let message = reader.localImageError {
                 HStack {
                     Image(systemName: "photo")
-                    Text("Grant folder access to show this document’s local images.")
+                    Text(message).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
                     Spacer()
-                    Button("Grant Image Folder…") { reader.allowImageFolder() }
+                    Button("Retry") { reader.reload() }
                 }.font(.callout).padding(12).background(.quaternary)
                 Divider()
             }
@@ -40,16 +53,33 @@ struct ReaderView: View {
                     Button("Retry") { reader.reload() }
                 }.font(.callout).padding(12).background(.quaternary)
             }
-            HStack(spacing: 0) {
-                if reader.showOutline { outline; Divider() }
-                if let rendered = reader.rendered {
-                    MarkdownWebView(reader: reader, html: rendered.html)
-                } else {
-                    ProgressView("Rendering Markdown…").frame(maxWidth: .infinity, maxHeight: .infinity)
+            GeometryReader { geometry in
+                let beside = geometry.size.width >= 840 + (reader.showOutline ? 220 : 0)
+                // Keep the document at the same structural path in both layouts.
+                // Opening or relocating review must not recreate its WKWebView.
+                VSplitView {
+                    HSplitView {
+                        documentPane.frame(minWidth: beside && reader.showChanges ? 360 : 0,
+                                           minHeight: reader.showChanges ? 180 : 0)
+                        if reader.showChanges && beside {
+                            reviewPanel.frame(minWidth: 300, idealWidth: 340, maxWidth: 420)
+                        }
+                    }
+                    if reader.showChanges && !beside {
+                        reviewPanel.frame(minHeight: 240, idealHeight: 280, maxHeight: 360)
+                    }
                 }
+                .frame(width: geometry.size.width, height: geometry.size.height)
+                .background(ReaderWindowMinimumSize(minimumHeight: reader.showChanges ? (beside ? 420 : 620) : 300))
             }
             Divider()
             ReaderStatusBar(reader: reader)
+        }
+        .alert("Save checkmarks to this file?", isPresented: $reader.showChecklistConfirmation, presenting: reader.pendingChecklistConfirmation) { _ in
+            Button("Save Checkmarks") { reader.confirmChecklistSaving() }
+            Button("Cancel", role: .cancel) { reader.cancelChecklistConfirmation() }
+        } message: { pending in
+            Text("Checkmarks in “\(pending.fileURL.lastPathComponent)” save automatically. Other text stays unchanged, and you can undo each change.")
         }
         .frame(minWidth: 480, minHeight: 300)
         .preferredColorScheme(documentAppearance == .system ? nil : (documentAppearance == .dark ? .dark : .light))
@@ -57,14 +87,33 @@ struct ReaderView: View {
         .onChange(of: documentAppearance) { reader.documentAppearance = documentAppearance; reader.render() }
         .onChange(of: reader.wide) { reader.render() }
         .onChange(of: reader.loadRemoteImages) { reader.render() }
-        .onChange(of: reader.showFind) { searchFocused = reader.showFind }
+        .onChange(of: reader.showChanges) {
+            if reader.showChanges, let target = reader.selectedChange?.targetID { reader.navigate(to: target) }
+        }
+    }
+
+    private var documentPane: some View {
+        HStack(spacing: 0) {
+            if reader.showOutline { outline; Divider() }
+            if let rendered = reader.rendered {
+                MarkdownWebView(reader: reader, html: rendered.html, checklistEnabled: reader.checklistMode, checklistSaving: reader.checklistSaving, checklistRendering: reader.isRendering, checklistPromptPresented: reader.showChecklistConfirmation)
+            } else {
+                ProgressView("Rendering Markdown…").frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+    }
+
+    private var reviewPanel: some View {
+        ChangesView(reader: reader, dismiss: { reader.showChanges = false })
+            .background(.bar)
     }
 
     private var findBar: some View {
         HStack {
-            TextField("Find in document", text: $reader.searchText)
-                .textFieldStyle(.roundedBorder).focused($searchFocused)
-                .onSubmit { reader.searchBackwards = false; reader.searchGeneration += 1 }
+            ReaderFindField(text: $reader.searchText, focusGeneration: reader.findFocusGeneration,
+                            submit: { reader.searchBackwards = false; reader.searchGeneration += 1 },
+                            cancel: { reader.showFind = false; reader.searchText = "" })
+                .frame(minHeight: 22)
                 .onChange(of: reader.searchText) { reader.searchBackwards = false; reader.searchGeneration += 1 }
             if !reader.searchFound && !reader.searchText.isEmpty {
                 Text("No matches").font(.caption).foregroundStyle(.secondary)
@@ -82,6 +131,7 @@ struct ReaderView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 4) {
                 Text("OUTLINE").font(.caption.weight(.semibold)).foregroundStyle(.secondary).padding(.bottom, 8)
+                    .accessibilityAddTraits(.isHeader)
                 if reader.rendered?.headings.isEmpty == true {
                     Text("No headings").font(.callout).foregroundStyle(.secondary)
                 }
@@ -94,6 +144,7 @@ struct ReaderView: View {
                             .padding(.leading, CGFloat(max(0, heading.level - 1)) * 10)
                             .frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 5)
                     }.buttonStyle(.plain)
+                        .accessibilityValue("Heading level \(heading.level)")
                 }
             }.padding(16).frame(maxWidth: .infinity, alignment: .leading)
         }.frame(width: 220)

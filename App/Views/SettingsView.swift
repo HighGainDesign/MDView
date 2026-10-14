@@ -17,10 +17,10 @@ struct SettingsView: View {
             } header: {
                 Text("Reading")
             } footer: {
-                Text("Appearance updates all open documents and new Finder Quick Look previews. Width is the default for every document you open; use ↔ to change an individual window.")
+                Text("Appearance updates all open documents and new Finder Quick Look previews. Width is the default for every document you open; use the Reading width button to change an individual window.")
             }
             Section("Document content") {
-                PolicyRow("Local images", value: "Automatic", help: "PNG, JPEG, GIF, and WebP images load from the document’s folder and subfolders. If macOS needs permission, use Reading options → Grant Image Folder… to remember read-only access. Paths and symlinks must stay inside the allowed folder. Quick Look supports embedded data images only.")
+                PolicyRow("Local images", value: "Automatic", help: "Local images load automatically from relative paths, absolute paths, file URLs and symlinks wherever macOS allows access. MDView does not require image-folder grants. Image formats are handled by WebKit. Quick Look supports embedded data images only.")
                 PolicyRow("Remote images", value: "Off by default", help: "In a document’s Reading options (…) choose Load Remote Images to allow HTTPS images for that window. Hosts can see your IP address and image requests. MDView sends no document referrer. The choice resets on closing; Quick Look never loads remote images.")
                 PolicyRow("Embedded HTML", value: "Not rendered", help: "HTML tags written directly in Markdown, such as <div> or <iframe>, are omitted to prevent active embedded content. Standard Markdown tables, links and images work. Scripts and embedded websites cannot run.")
             }
@@ -79,7 +79,9 @@ private struct PolicyRow: View {
             Text(title)
             Spacer()
             Text(value).foregroundStyle(.secondary)
-            Button { showingHelp.toggle() } label: { Image(systemName: "info.circle") }
+            Button { showingHelp.toggle() } label: {
+                Image(systemName: "info.circle").frame(minWidth: 24, minHeight: 24).contentShape(Rectangle())
+            }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
                 .accessibilityLabel("About \(title.lowercased())")

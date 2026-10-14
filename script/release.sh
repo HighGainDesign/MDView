@@ -8,9 +8,15 @@ IDENTITY="${MDVIEW_SIGNING_IDENTITY:-Developer ID Application}"
 TEAM_ID="${MDVIEW_TEAM_ID:-$(security find-certificate -c "$IDENTITY" -p | openssl x509 -noout -subject -nameopt RFC2253 | sed -n 's/.*OU=\([^,]*\).*/\1/p')}"
 [[ -n "$TEAM_ID" ]] || { echo 'Set MDVIEW_TEAM_ID to the Developer ID signing team.' >&2; exit 1; }
 PROFILE="${MDVIEW_NOTARY_PROFILE:-Notarize}"
-NOTARY_ARGS=(--keychain-profile "$PROFILE")
-if [[ -n "${MDVIEW_NOTARY_KEYCHAIN:-}" ]]; then
-  NOTARY_ARGS+=(--keychain "$MDVIEW_NOTARY_KEYCHAIN")
+if [[ -n "${MDVIEW_NOTARY_API_KEY_PATH:-}" ]]; then
+  : "${MDVIEW_NOTARY_API_KEY_ID:?Set the notarization API key ID.}"
+  : "${MDVIEW_NOTARY_ISSUER_ID:?Set the notarization API issuer ID.}"
+  NOTARY_ARGS=(--key "$MDVIEW_NOTARY_API_KEY_PATH" --key-id "$MDVIEW_NOTARY_API_KEY_ID" --issuer "$MDVIEW_NOTARY_ISSUER_ID")
+else
+  NOTARY_ARGS=(--keychain-profile "$PROFILE")
+  if [[ -n "${MDVIEW_NOTARY_KEYCHAIN:-}" ]]; then
+    NOTARY_ARGS+=(--keychain "$MDVIEW_NOTARY_KEYCHAIN")
+  fi
 fi
 NOTARY_TIMEOUT="${MDVIEW_NOTARY_TIMEOUT:-15m}"
 APP="$BUILD_DIR/Build/Products/Release/MDView.app"

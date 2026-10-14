@@ -3,6 +3,7 @@ import SwiftUI
 /// Actions live here; passive information belongs in ReaderStatusBar.
 struct ReaderToolbar: View {
     @Bindable var reader: ReaderState
+    @FocusState private var reviewFocused: Bool
 
     var body: some View {
         ViewThatFits(in: .horizontal) {
@@ -14,6 +15,7 @@ struct ReaderToolbar: View {
         .controlSize(.regular)
         .padding(.horizontal, 12).padding(.vertical, 8)
         .background(.bar)
+        .onChange(of: reader.showChanges) { if !reader.showChanges { reviewFocused = true } }
     }
 
     private func controls(compact: Bool) -> some View {
@@ -73,10 +75,9 @@ struct ReaderToolbar: View {
                 }
                 .help("Review saved changes (⇧⌘R)")
                 .accessibilityLabel("Review changes")
-                .accessibilityValue("\(reader.changes.count) unreviewed changes")
-                .popover(isPresented: $reader.showChanges) {
-                    ChangesView(reader: reader, dismiss: { reader.showChanges = false })
-                }
+                .accessibilityValue("\(reader.changes.count) unreviewed changes, panel \(reader.showChanges ? "shown" : "hidden")")
+                .tint(reader.showChanges ? .accentColor : .secondary)
+                .focused($reviewFocused)
                 .fixedSize()
                 toolSeparator
             }
@@ -109,9 +110,12 @@ struct ReaderToolbar: View {
                 Button("Actual Size") { reader.zoom = 1 }
                 if let url = reader.fileURL {
                     Divider()
+                    Toggle("Save Checkmarks Automatically", isOn: $reader.checklistMode)
+                        .disabled(reader.checklistSaving || reader.rendered?.checkboxCount == 0)
+                        .help("For this document only. Each checkbox change is saved immediately; Undo is available.")
+                    Divider()
                     Button("Reload") { reader.reload() }
                     Button("Reveal in Finder") { NSWorkspace.shared.activateFileViewerSelecting([url]) }
-                    Button("Grant Image Folder…") { reader.allowImageFolder() }
                 }
             } label: { Image(systemName: "ellipsis").frame(width: 18, height: 20) }
             .help("Reading options").accessibilityLabel("Reading options")
@@ -135,8 +139,8 @@ struct ReaderStatusBar: View {
                           ? "This preview is held. Resume to show the latest streamed text."
                           : "Follows the editor publishing to the Marked-compatible channel. Source names are supplied by the editor.")
             } else if reader.fileURL != nil {
-                Label(reader.errorMessage == nil ? "Automatic updates" : "Refresh failed",
-                      systemImage: reader.errorMessage == nil ? "arrow.triangle.2.circlepath" : "exclamationmark.triangle")
+                Label(reader.checklistMode ? (reader.checklistSaving ? "Saving checkbox…" : (reader.checklistError == nil ? "Checkmarks saved" : "Checkbox not saved")) : (reader.errorMessage == nil ? "Automatic updates" : "Refresh failed"),
+                      systemImage: reader.errorMessage == nil && reader.checklistError == nil ? "arrow.triangle.2.circlepath" : "exclamationmark.triangle")
                     .help("Saved file changes appear automatically. Use Review Changes to compare with the last version you marked reviewed.")
             } else {
                 Text("Snapshot preview").help("This preview does not receive live updates.")

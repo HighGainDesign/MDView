@@ -123,12 +123,11 @@ final class MarkdownStreamTests: XCTestCase {
     }
 
     @MainActor
-    func testStreamingDocumentIsReadOnlyAndHasNoFileOrImageRoot() {
+    func testStreamingDocumentIsReadOnlyAndHasNoFileBase() {
         let document = MarkdownDocument(streamingPreview: true)
         XCTAssertTrue(document.reader.isStreamingPreview)
         XCTAssertFalse(document.isDocumentEdited)
         XCTAssertNil(document.fileURL)
-        XCTAssertNil(document.reader.imageRoot)
         document.close()
         XCTAssertTrue(document.reader.streamPaused)
     }

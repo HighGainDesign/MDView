@@ -10,7 +10,7 @@ struct SetupView: View {
                 Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 56, height: 56)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("Make MDView part of your workflow").font(.title2.weight(.semibold))
+                    Text("Make MDView part of your workflow").font(.title2.weight(.semibold)).accessibilityAddTraits(.isHeader)
                     Text("Two optional ways to preview your Markdown.").foregroundStyle(.secondary)
                 }
             }

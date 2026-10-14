@@ -1,4 +1,5 @@
 import ApexC
+import CcmarkGFM
 import Foundation
 import SwiftSoup
 
@@ -14,6 +15,9 @@ struct RenderedMarkdown: Sendable {
     let wordCount: Int
     var changes = ChangeSummary()
     var comparisonBaseline: [ReadingUnit]?
+    var tasks: [MarkdownTask] = []
+    var taskSource = ""
+    var checkboxCount = 0
 }
 
 /// Serializes native Apex conversions off the UI actor. App and Quick Look use
@@ -22,7 +26,7 @@ actor MarkdownRenderer {
     static let shared = MarkdownRenderer()
     private var stylesheet: String?
 
-    func render(_ source: String, title: String = "Markdown", wide: Bool = false, baseline: String? = nil, reviewedUnits: [ReadingUnit]? = nil, loadRemoteImages: Bool = false, appearance: DocumentAppearance = .system) throws -> RenderedMarkdown {
+    func render(_ source: String, title: String = "Markdown", wide: Bool = false, baseline: String? = nil, reviewedUnits: [ReadingUnit]? = nil, loadRemoteImages: Bool = false, appearance: DocumentAppearance = .system, mapTasks: Bool = false) throws -> RenderedMarkdown {
         guard source.utf8.count <= MarkdownSource.maximumBytes else { throw ReaderError.tooLarge }
         if stylesheet == nil {
             guard let cssURL = Bundle(for: RendererBundleMarker.self).url(forResource: "reader", withExtension: "css") else {
@@ -47,7 +51,11 @@ actor MarkdownRenderer {
         if let comparisonBaseline {
             changes = try DocumentChanges.annotate(current: document, baseline: comparisonBaseline)
         }
-        let body = try document.body()?.html() ?? ""
+        let checkboxCount = try document.select("input[type=checkbox]").size()
+        let tasks = mapTasks ? try MarkdownTasks.attach(to: document, source: source) : []
+        // Serialize the sanitized DOM itself, including newly attached task metadata.
+        // Source reuse can retain an input tag without its new attributes.
+        let body = String(decoding: try document.body()?.htmlUTF8WithoutSourceReuse() ?? [], as: UTF8.self)
         let count = source.split(whereSeparator: \.isWhitespace).count
         let html = """
         <!doctype html><html lang="en" data-appearance="\(appearance.rawValue)"><head><meta charset="utf-8">
@@ -58,7 +66,7 @@ actor MarkdownRenderer {
         <title>\(Self.escapeHTML(title))</title><style>\(stylesheet ?? "")</style></head>
         <body class="\(wide ? "wide" : "")"><main id="document" aria-label="Markdown document">\(body)</main></body></html>
         """
-        return RenderedMarkdown(html: html, headings: headings, wordCount: count, changes: changes, comparisonBaseline: comparisonBaseline)
+        return RenderedMarkdown(html: html, headings: headings, wordCount: count, changes: changes, comparisonBaseline: comparisonBaseline, tasks: tasks, taskSource: source, checkboxCount: checkboxCount)
     }
 
     private func parse(_ source: String, loadRemoteImages: Bool) throws -> Document {
@@ -85,6 +93,31 @@ actor MarkdownRenderer {
         options.id_format = 0
         options.github_pre_lang = false
         options.generate_header_ids = true
+        // Normalize only parsed image destinations. Apex/cmark otherwise drops
+        // file: URLs in safe mode. Raw HTML and executable URLs remain disabled.
+        guard let imageExtension = cmark_syntax_extension_new("mdview-local-images") else {
+            throw ReaderError.rendererUnavailable
+        }
+        defer { cmark_syntax_extension_free(cmark_get_default_mem_allocator(), imageExtension) }
+        cmark_syntax_extension_set_postprocess_func(imageExtension) { _, _, root in
+            guard let root, let iterator = cmark_iter_new(root) else { return root }
+            defer { cmark_iter_free(iterator) }
+            while cmark_iter_next(iterator) != CMARK_EVENT_DONE {
+                guard cmark_iter_get_event_type(iterator) == CMARK_EVENT_ENTER,
+                      let node = cmark_iter_get_node(iterator), cmark_node_get_type(node) == CMARK_NODE_IMAGE,
+                      let destination = cmark_node_get_url(node) else { continue }
+                let source = String(cString: destination)
+                if URLComponents(string: source)?.scheme?.lowercased() == "file",
+                   let path = LocalImage.pathReference(source) {
+                    _ = path.withCString { cmark_node_set_url(node, $0) }
+                }
+            }
+            return root
+        }
+        options.cmark_user_data = UnsafeMutableRawPointer(imageExtension)
+        options.cmark_init = { parser, _, _, data in
+            if let data { _ = cmark_parser_attach_syntax_extension(parser, data.assumingMemoryBound(to: cmark_syntax_extension.self)) }
+        }
         let fragment = try source.withCString { markdown in
             guard let output = apex_markdown_to_html(markdown, source.utf8.count, &options) else {
                 throw ReaderError.rendererUnavailable
