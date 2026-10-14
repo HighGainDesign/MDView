@@ -84,7 +84,7 @@ final class ReaderAnnouncementTests: XCTestCase {
         spoken.removeAll()
         reader.markCurrentChangeReviewed(); try await settle(reader)
         for _ in 0..<100 where spoken.isEmpty { try await Task.sleep(for:.milliseconds(10)) }
-        XCTAssertTrue(spoken.joined().contains("1 remaining"))
+        XCTAssertTrue(spoken.joined().contains("1 change remaining"))
         XCTAssertEqual(reader.selectedChange?.after,"New second.")
         spoken.removeAll()
         reader.markCurrentChangeReviewed(); try await settle(reader)

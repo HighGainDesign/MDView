@@ -14,7 +14,7 @@ final class MarkdownDocument: NSDocument {
     init(preview: PreviewRequest) {
         super.init()
         reader.source = preview.text
-        reader.title = preview.title.isEmpty ? "Drafts Preview" : preview.title
+        reader.title = preview.title.isEmpty ? String(localized: "Drafts Preview") : preview.title
         displayName = reader.title
         let loaded = LoadedSource(text: reader.source, url: nil, title: reader.title)
         loadedSource.withLock { $0 = loaded }
@@ -23,7 +23,7 @@ final class MarkdownDocument: NSDocument {
     init(streamingPreview: Bool) {
         super.init()
         reader.isStreamingPreview = streamingPreview
-        reader.title = "Live Streaming Preview"
+        reader.title = String(localized: "Live Streaming Preview")
         displayName = reader.title
         let loaded = LoadedSource(title: reader.title)
         loadedSource.withLock { $0 = loaded }

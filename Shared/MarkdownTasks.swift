@@ -68,7 +68,7 @@ enum MarkdownTasks {
         // Attach only after every mapping has been validated.
         for (index, input) in inputs.enumerated() {
             try input.attr("data-mdview-task", String(index))
-            try input.attr("title", "Click to save checkmarks in this file")
+            try input.attr("title", String(localized: "Click to save checkmarks in this file"))
         }
         return tasks
     }
@@ -107,7 +107,7 @@ enum ChecklistError: LocalizedError {
     case changed
     var errorDescription: String? {
         switch self {
-        case .changed: "The file changed before the checkbox could be saved. MDView refreshed it; please try again."
+        case .changed: String(localized: "The file changed before the checkbox could be saved. MDView refreshed it; please try again.")
         }
     }
 }

@@ -12,8 +12,8 @@ struct ReaderFindField: NSViewRepresentable {
 
     func makeNSView(context: Context) -> Field {
         let field = Field()
-        field.placeholderString = "Find in document"
-        field.setAccessibilityLabel("Find in document")
+        field.placeholderString = String(localized: "Find in document")
+        field.setAccessibilityLabel(String(localized: "Find in document"))
         field.isEditable = true
         field.isSelectable = true
         field.isBezeled = true

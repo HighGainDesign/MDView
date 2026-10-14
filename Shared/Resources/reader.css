@@ -30,8 +30,9 @@ a:hover { text-decoration-thickness: 2px; }
 code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .88em; }
 code { background: var(--wash); padding: .15em .35em; border-radius: 4px; }
 pre { padding: 16px 20px; background: var(--wash); border: 1px solid var(--line); border-radius: 8px; overflow-x: auto; overflow-wrap: normal; line-height: 1.55; }
+pre { direction: ltr; unicode-bidi: isolate; text-align: start; }
 pre code { padding: 0; background: none; font-size: 1em; }
-blockquote { color: var(--muted); padding: .1em 1.2em; border-left: 3px solid var(--line); margin-left: 0; }
+blockquote { color: var(--muted); padding: .1em 1.2em; border-inline-start: 3px solid var(--line); margin-inline-start: 0; }
 hr { border: 0; border-top: 1px solid var(--line); margin: 2em 0; }
 .table-scroll { overflow-x: auto; }
 table { border-collapse: collapse; font-size: .94em; width: 100%; }

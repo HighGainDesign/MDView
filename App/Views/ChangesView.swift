@@ -84,7 +84,7 @@ struct ChangesView: View {
     private func changeDetail(_ change: DocumentChange) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Label(change.kind.rawValue, systemImage: change.kind == .removed ? "minus.circle" : (change.kind == .added ? "plus.circle" : "pencil.circle"))
+                Label(change.kind.localizedTitle, systemImage: change.kind == .removed ? "minus.circle" : (change.kind == .added ? "plus.circle" : "pencil.circle"))
                     .font(.callout.weight(.semibold))
                     .foregroundStyle(change.kind == .removed ? .red : (change.kind == .added ? .green : .orange))
                 Spacer()

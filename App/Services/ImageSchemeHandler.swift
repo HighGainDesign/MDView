@@ -27,7 +27,7 @@ final class ImageSchemeHandler: NSObject, WKURLSchemeHandler {
             urlSchemeTask.didReceive(data)
             urlSchemeTask.didFinish()
         } catch {
-            loadFailed?("Couldn’t load “\(image.lastPathComponent)”: \(error.localizedDescription)")
+            loadFailed?(String(localized: "Couldn’t load “\(image.lastPathComponent)”: \(error.localizedDescription)"))
             urlSchemeTask.didFailWithError(error)
         }
     }

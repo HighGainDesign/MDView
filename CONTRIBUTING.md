@@ -43,6 +43,15 @@ The main code boundaries are:
 - `Integrations/Drafts/`: action resource and URL integration.
 - `script/`: local build and release packaging.
 
+## Localization
+
+Build with `SWIFT_EMIT_LOC_STRINGS=YES` (enabled in `project.yml`), then run
+`python3 script/sync-localizations.py /path/to/DerivedData` to sync the shared
+String Catalog. Rebuild to compile catalog changes. Keep count messages pluralized
+and localize native menus, errors and accessibility text as well as SwiftUI labels.
+The current interface ships in English; reviewed translations follow later.
+Document language is separate, detected on-device or selected per window.
+
 ## Pull requests
 
 Keep each pull request focused. Explain the user-visible problem, the resulting

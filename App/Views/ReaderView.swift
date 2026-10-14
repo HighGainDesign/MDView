@@ -17,7 +17,7 @@ struct ReaderView: View {
                         .foregroundStyle(.secondary)
                     VStack(alignment: .leading, spacing: 4) {
                         Text(reader.streamError == nil ? "Waiting for a live stream" : "Live preview unavailable").fontWeight(.medium)
-                        Text(reader.streamError ?? "Enable your editor’s Marked streaming preview integration, then start editing. In Drafts, use Settings → General. Marked can stay closed.")
+                        Text(reader.streamError ?? String(localized: "Enable your editor’s Marked streaming preview integration, then start editing. In Drafts, use Settings → General. Marked can stay closed."))
                             .foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 0)
@@ -37,7 +37,7 @@ struct ReaderView: View {
             if reader.checklistMode {
                 HStack(spacing: 10) {
                     Image(systemName: "checklist")
-                    Text(reader.checklistError ?? (reader.hasPendingFileUpdate ? "Resume updates before saving more checkmarks." : (reader.rendered?.tasks.isEmpty == true ? "This checklist cannot be mapped safely. Checkboxes remain disabled." : "Checkmarks save to this file.")))
+                    Text(checklistStatus)
                         .fixedSize(horizontal: false, vertical: true)
                     Spacer()
                     Button("Undo") { reader.undoChecklist() }.disabled(!reader.canUndoChecklist)
@@ -99,6 +99,7 @@ struct ReaderView: View {
         .task { reader.documentAppearance = documentAppearance; await reader.watchFile() }
         .onChange(of: documentAppearance) { reader.documentAppearance = documentAppearance; reader.render() }
         .onChange(of: reader.wide) { reader.render() }
+        .onChange(of: reader.documentLanguageOverride) { reader.render() }
         .onChange(of: reader.loadRemoteImages) { reader.render() }
         .task(id: reader.returnFocusGeneration) {
             guard reader.returnFocusGeneration > 0, case .outline(let id) = reader.navigationReturnTarget else { return }
@@ -111,6 +112,14 @@ struct ReaderView: View {
         .onChange(of: reader.showChanges) {
             if reader.showChanges, let target = reader.selectedChange?.targetID { reader.navigate(to: target, focus: false) }
         }
+    }
+
+    private var checklistStatus: String {
+        if let error = reader.checklistError { return error }
+        if reader.hasPendingFileUpdate { return String(localized: "Resume updates before saving more checkmarks.") }
+        return reader.rendered?.tasks.isEmpty == true
+            ? String(localized: "This checklist cannot be mapped safely. Checkboxes remain disabled.")
+            : String(localized: "Checkmarks save to this file.")
     }
 
     private var documentPane: some View {

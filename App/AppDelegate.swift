@@ -70,7 +70,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
             let view = WelcomeView(open: { NSDocumentController.shared.openDocument(nil) },
                                    liveStreaming: { [weak self] in self?.showLiveStreamingPreview() })
             let window = NSWindow(contentViewController: NSHostingController(rootView: view))
-            window.title = "MDView"
+            window.title = String(localized: "MDView")
             window.styleMask = [.titled, .closable, .miniaturizable]
             window.setContentSize(NSSize(width: 520, height: 370))
             window.center()
@@ -115,7 +115,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
     @objc private func showSettings(_ sender: Any?) {
         if settings == nil {
             let window = NSWindow(contentViewController: NSHostingController(rootView: SettingsView()))
-            window.title = "MDView Settings"
+            window.title = String(localized: "MDView Settings")
             window.styleMask = [.titled, .closable]
             window.setContentSize(NSSize(width: 600, height: 680))
             window.center()
@@ -165,15 +165,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
             return (reader?.changes.count ?? 0) > 0
         }
         if menuItem.action == #selector(toggleFileUpdates(_:)) {
-            menuItem.title = reader?.fileUpdatesPaused == true ? "Resume Updates" : "Pause Updates"
+            menuItem.title = reader?.fileUpdatesPaused == true ? String(localized: "Resume Updates") : String(localized: "Pause Updates")
             return reader?.fileURL != nil && reader?.isStreamingPreview == false
         }
         if menuItem.action == #selector(undoCheckbox(_:)) {
-            menuItem.title = undoActions.isEditingText ? "Undo" : "Undo Checkbox Change"
+            menuItem.title = undoActions.isEditingText ? String(localized: "Undo") : String(localized: "Undo Checkbox Change")
             return undoActions.canUndo
         }
         if menuItem.action == #selector(redoCheckbox(_:)) {
-            menuItem.title = undoActions.isEditingText ? "Redo" : "Redo Checkbox Change"
+            menuItem.title = undoActions.isEditingText ? String(localized: "Redo") : String(localized: "Redo Checkbox Change")
             return undoActions.canRedo
         }
         return true
@@ -197,7 +197,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
             menu.addItem(item)
         }
         if !menu.items.isEmpty { menu.addItem(.separator()) }
-        add("Clear Menu", to: menu, action: #selector(NSDocumentController.clearRecentDocuments(_:)))
+        add(String(localized: "Clear Menu"), to: menu, action: #selector(NSDocumentController.clearRecentDocuments(_:)))
     }
 
     @objc private func openRecent(_ sender: NSMenuItem) {
@@ -207,68 +207,68 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
 
     private func buildMenus() {
         let bar = NSMenu()
-        let app = NSMenu(title: "MDView")
-        add("About MDView", to: app, action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)))
+        let app = NSMenu(title: String(localized: "MDView"))
+        add(String(localized: "About MDView"), to: app, action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)))
         app.addItem(.separator())
-        add("Settings…", to: app, action: #selector(showSettings(_:)), key: ",", target: self)
+        add(String(localized: "Settings…"), to: app, action: #selector(showSettings(_:)), key: ",", target: self)
         app.addItem(.separator())
-        let services = NSMenu(title: "Services")
-        let serviceItem = NSMenuItem(title: "Services", action: nil, keyEquivalent: "")
+        let services = NSMenu(title: String(localized: "Services"))
+        let serviceItem = NSMenuItem(title: String(localized: "Services"), action: nil, keyEquivalent: "")
         serviceItem.submenu = services
         app.addItem(serviceItem)
         NSApp.servicesMenu = services
         app.addItem(.separator())
-        add("Hide MDView", to: app, action: #selector(NSApplication.hide(_:)), key: "h")
-        add("Hide Others", to: app, action: #selector(NSApplication.hideOtherApplications(_:)), key: "h", modifiers: [.command, .option])
-        add("Show All", to: app, action: #selector(NSApplication.unhideAllApplications(_:)))
+        add(String(localized: "Hide MDView"), to: app, action: #selector(NSApplication.hide(_:)), key: "h")
+        add(String(localized: "Hide Others"), to: app, action: #selector(NSApplication.hideOtherApplications(_:)), key: "h", modifiers: [.command, .option])
+        add(String(localized: "Show All"), to: app, action: #selector(NSApplication.unhideAllApplications(_:)))
         app.addItem(.separator())
-        add("Quit MDView", to: app, action: #selector(NSApplication.terminate(_:)), key: "q")
+        add(String(localized: "Quit MDView"), to: app, action: #selector(NSApplication.terminate(_:)), key: "q")
         attach(app, to: bar)
 
-        let file = NSMenu(title: "File")
-        add("Open…", to: file, action: #selector(NSDocumentController.openDocument(_:)), key: "o")
-        add("Live Streaming Preview", to: file, action: #selector(liveStreamingPreview(_:)), target: self)
-        let recent = NSMenu(title: "Open Recent")
+        let file = NSMenu(title: String(localized: "File"))
+        add(String(localized: "Open…"), to: file, action: #selector(NSDocumentController.openDocument(_:)), key: "o")
+        add(String(localized: "Live Streaming Preview"), to: file, action: #selector(liveStreamingPreview(_:)), target: self)
+        let recent = NSMenu(title: String(localized: "Open Recent"))
         recent.delegate = self
-        add("Clear Menu", to: recent, action: #selector(NSDocumentController.clearRecentDocuments(_:)))
-        let recentItem = NSMenuItem(title: "Open Recent", action: nil, keyEquivalent: "")
+        add(String(localized: "Clear Menu"), to: recent, action: #selector(NSDocumentController.clearRecentDocuments(_:)))
+        let recentItem = NSMenuItem(title: String(localized: "Open Recent"), action: nil, keyEquivalent: "")
         recentItem.submenu = recent
         file.addItem(recentItem)
         file.addItem(.separator())
-        add("Close Window", to: file, action: #selector(NSWindow.performClose(_:)), key: "w")
+        add(String(localized: "Close Window"), to: file, action: #selector(NSWindow.performClose(_:)), key: "w")
         attach(file, to: bar)
 
-        let edit = NSMenu(title: "Edit")
-        add("Undo Checkbox Change", to: edit, action: #selector(undoCheckbox(_:)), key: "z", target: self)
-        add("Redo Checkbox Change", to: edit, action: #selector(redoCheckbox(_:)), key: "z", modifiers: [.command, .shift], target: self)
+        let edit = NSMenu(title: String(localized: "Edit"))
+        add(String(localized: "Undo Checkbox Change"), to: edit, action: #selector(undoCheckbox(_:)), key: "z", target: self)
+        add(String(localized: "Redo Checkbox Change"), to: edit, action: #selector(redoCheckbox(_:)), key: "z", modifiers: [.command, .shift], target: self)
         edit.addItem(.separator())
-        add("Copy", to: edit, action: #selector(NSText.copy(_:)), key: "c")
-        add("Select All", to: edit, action: #selector(NSText.selectAll(_:)), key: "a")
+        add(String(localized: "Copy"), to: edit, action: #selector(NSText.copy(_:)), key: "c")
+        add(String(localized: "Select All"), to: edit, action: #selector(NSText.selectAll(_:)), key: "a")
         edit.addItem(.separator())
-        add("Find…", to: edit, action: #selector(find(_:)), key: "f", target: self)
+        add(String(localized: "Find…"), to: edit, action: #selector(find(_:)), key: "f", target: self)
         attach(edit, to: bar)
 
-        let view = NSMenu(title: "View")
-        add("Reload", to: view, action: #selector(reload(_:)), key: "r", target: self)
-        add("Pause Updates", to: view, action: #selector(toggleFileUpdates(_:)), key: "p", modifiers: [.command, .option], target: self)
-        add("Review Changes", to: view, action: #selector(reviewChanges(_:)), key: "r", modifiers: [.command, .shift], target: self)
-        add("Toggle Outline", to: view, action: #selector(toggleOutline(_:)), key: "o", modifiers: [.command, .option], target: self)
+        let view = NSMenu(title: String(localized: "View"))
+        add(String(localized: "Reload"), to: view, action: #selector(reload(_:)), key: "r", target: self)
+        add(String(localized: "Pause Updates"), to: view, action: #selector(toggleFileUpdates(_:)), key: "p", modifiers: [.command, .option], target: self)
+        add(String(localized: "Review Changes"), to: view, action: #selector(reviewChanges(_:)), key: "r", modifiers: [.command, .shift], target: self)
+        add(String(localized: "Toggle Outline"), to: view, action: #selector(toggleOutline(_:)), key: "o", modifiers: [.command, .option], target: self)
         view.addItem(.separator())
-        add("Focus Document", to: view, action: #selector(focusDocument(_:)), key: "d", modifiers: [.command, .option], target: self)
-        add("Return to Navigation", to: view, action: #selector(returnToNavigation(_:)), key: String(UnicodeScalar(NSLeftArrowFunctionKey)!), modifiers: [.command, .option], target: self)
-        add("Next Unchecked Task", to: view, action: #selector(nextUncheckedTask(_:)), key: "j", modifiers: [.command, .option], target: self)
-        add("Previous Unchecked Task", to: view, action: #selector(previousUncheckedTask(_:)), key: "j", modifiers: [.command, .option, .shift], target: self)
-        add("Next Unreviewed Change", to: view, action: #selector(nextChange(_:)), key: "]", modifiers: [.command, .option], target: self)
-        add("Previous Unreviewed Change", to: view, action: #selector(previousChange(_:)), key: "[", modifiers: [.command, .option], target: self)
+        add(String(localized: "Focus Document"), to: view, action: #selector(focusDocument(_:)), key: "d", modifiers: [.command, .option], target: self)
+        add(String(localized: "Return to Navigation"), to: view, action: #selector(returnToNavigation(_:)), key: String(UnicodeScalar(NSLeftArrowFunctionKey)!), modifiers: [.command, .option], target: self)
+        add(String(localized: "Next Unchecked Task"), to: view, action: #selector(nextUncheckedTask(_:)), key: "j", modifiers: [.command, .option], target: self)
+        add(String(localized: "Previous Unchecked Task"), to: view, action: #selector(previousUncheckedTask(_:)), key: "j", modifiers: [.command, .option, .shift], target: self)
+        add(String(localized: "Next Unreviewed Change"), to: view, action: #selector(nextChange(_:)), key: "]", modifiers: [.command, .option], target: self)
+        add(String(localized: "Previous Unreviewed Change"), to: view, action: #selector(previousChange(_:)), key: "[", modifiers: [.command, .option], target: self)
         view.addItem(.separator())
-        add("Zoom In", to: view, action: #selector(zoomIn(_:)), key: "+", target: self)
-        add("Zoom Out", to: view, action: #selector(zoomOut(_:)), key: "-", target: self)
-        add("Actual Size", to: view, action: #selector(actualSize(_:)), key: "0", target: self)
+        add(String(localized: "Zoom In"), to: view, action: #selector(zoomIn(_:)), key: "+", target: self)
+        add(String(localized: "Zoom Out"), to: view, action: #selector(zoomOut(_:)), key: "-", target: self)
+        add(String(localized: "Actual Size"), to: view, action: #selector(actualSize(_:)), key: "0", target: self)
         attach(view, to: bar)
 
-        let window = NSMenu(title: "Window")
-        add("Minimize", to: window, action: #selector(NSWindow.performMiniaturize(_:)), key: "m")
-        add("Zoom", to: window, action: #selector(NSWindow.performZoom(_:)))
+        let window = NSMenu(title: String(localized: "Window"))
+        add(String(localized: "Minimize"), to: window, action: #selector(NSWindow.performMiniaturize(_:)), key: "m")
+        add(String(localized: "Zoom"), to: window, action: #selector(NSWindow.performZoom(_:)))
         attach(window, to: bar)
         NSApp.windowsMenu = window
         NSApp.mainMenu = bar

@@ -51,7 +51,7 @@ enum HTMLAdapter {
                 if let parent = element.parent(), let copy = try SwiftSoup.parseBodyFragment(parent.html()).body() {
                     try copy.select("ul, ol").remove()
                     let label = try copy.text()
-                    try element.attr("aria-label", label.isEmpty ? "Task" : label)
+                    try element.attr("aria-label", label.isEmpty ? String(localized: "Task") : label)
                 }
             }
             if tag == "img" {

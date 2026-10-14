@@ -20,7 +20,7 @@ struct MarkdownWebView: NSViewRepresentable {
         configuration.userContentController.add(context.coordinator, contentWorld: Coordinator.taskWorld, name: "taskToggle")
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
-        webView.setAccessibilityLabel("Markdown document")
+        webView.setAccessibilityLabel(String(localized: "Markdown document"))
         webView.allowsLinkPreview = false
         context.coordinator.webView = webView
         return webView
@@ -177,7 +177,7 @@ struct MarkdownWebView: NSViewRepresentable {
                     for (const input of document.querySelectorAll('input[data-mdview-task]')) {
                         input.disabled = !enabled;
                         if (!saving && !rendering) input.checked = input.defaultChecked;
-                        input.title = canSave ? 'Save this checkbox change to the Markdown file' : 'Click to save checkmarks in this file';
+                        input.title = canSave ? saveTitle : consentTitle;
                     }
                     if (enabled) {
                         if (focusID >= 0) {
@@ -206,9 +206,9 @@ struct MarkdownWebView: NSViewRepresentable {
                             window.webkit.messageHandlers.taskToggle.postMessage({id: Number(input.dataset.mdviewTask), checked, token: state.token});
                         });
                     }
-                    """, arguments: ["enabled": enabled, "canSave": canSave, "token": token, "saving": reader.checklistSaving, "rendering": reader.isRendering, "focusID": focusID, "focusIntent": focusIntent, "restoreFocus": Self.hasDocumentFocus(webView)], in: nil, contentWorld: Self.taskWorld)
+                    """, arguments: ["enabled": enabled, "canSave": canSave, "token": token, "saving": reader.checklistSaving, "rendering": reader.isRendering, "focusID": focusID, "focusIntent": focusIntent, "restoreFocus": Self.hasDocumentFocus(webView), "saveTitle": String(localized: "Save this checkbox change to the Markdown file"), "consentTitle": String(localized: "Click to save checkmarks in this file")], in: nil, contentWorld: Self.taskWorld)
                 } catch {
-                    if reader.checklistMode { reader.checklistError = "Could not activate checklist controls: \(error.localizedDescription)" }
+                    if reader.checklistMode { reader.checklistError = String(localized: "Could not activate checklist controls: \(error.localizedDescription)") }
                 }
             }
         }

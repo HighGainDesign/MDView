@@ -16,8 +16,8 @@ struct SetupView: View {
             }
             GroupBox {
                 VStack(alignment: .leading, spacing: 14) {
-                    IntegrationHeading(title: "Finder Quick Look", symbol: "doc.viewfinder",
-                                       subtitle: "Preview files without opening a document window.")
+                    IntegrationHeading(title: String(localized: "Finder Quick Look"), symbol: "doc.viewfinder",
+                                       subtitle: String(localized: "Preview files without opening a document window."))
                     QuickLookInstructions()
                     HStack {
                         Button("Open Extension Settings…") { session.openQuickLookSettings() }
@@ -28,8 +28,8 @@ struct SetupView: View {
             }
             GroupBox {
                 VStack(alignment: .leading, spacing: 14) {
-                    IntegrationHeading(title: "Drafts", symbol: "square.and.pencil",
-                                       subtitle: "Add Preview in MDView to view a draft without changing it.")
+                    IntegrationHeading(title: String(localized: "Drafts"), symbol: "square.and.pencil",
+                                       subtitle: String(localized: "Add Preview in MDView to view a draft without changing it."))
                     HStack {
                         Button("Install Drafts Action…") { Task { await session.installDraftsAction() } }
                             .disabled(!session.draftsAvailable || session.installingDrafts)

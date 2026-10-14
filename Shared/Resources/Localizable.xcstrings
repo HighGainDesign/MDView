@@ -1,0 +1,363 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "%@ since last review": {},
+    "%@ · Live": {},
+    "%@ · Paused": {},
+    "%@: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@: %2$@"
+          }
+        }
+      }
+    },
+    "%lld": {},
+    "%lld changes remaining.": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld change remaining."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld changes remaining."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld remaining": {},
+    "%lld unreviewed changes available.": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld unreviewed change available."
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld unreviewed changes available."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld unreviewed changes, panel %@": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld unreviewed change, panel %@"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld unreviewed changes, panel %@"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld words": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld word"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld words"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "A newer saved version is waiting. Resume updates to read it.": {},
+    "About %@": {},
+    "About MDView": {},
+    "Acknowledge every remaining change in this document": {},
+    "Actual Size": {},
+    "Add Preview in MDView to view a draft without changing it.": {},
+    "Added": {},
+    "After": {},
+    "All changes reviewed": {},
+    "All changes reviewed.": {},
+    "Appearance updates all open documents and new Finder Quick Look previews. Width is the default for every document you open; use the Reading width button to change an individual window.": {},
+    "Automatic": {},
+    "Automatic updates": {},
+    "Before": {},
+    "Cancel": {},
+    "Change %lld of %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Change %1$lld of %2$lld"
+          }
+        }
+      }
+    },
+    "Change %lld of %lld. %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Change %1$lld of %2$lld. %3$@."
+          }
+        }
+      }
+    },
+    "Changes": {},
+    "Checkbox not saved": {},
+    "Checked checkbox": {},
+    "Checkmarks in “%@” save automatically. Other text stays unchanged, and you can undo each change.": {},
+    "Checkmarks save to this file.": {},
+    "Checkmarks saved": {},
+    "Choose By Category → Quick Look, then enable MDView.": {},
+    "Choose By Category → Quick Look, then enable MDView. Another enabled Markdown previewer may take priority.": {},
+    "Choose Quick Look, then enable MDView.": {},
+    "Clear Menu": {},
+    "Clear this highlight and advance to the next change": {},
+    "Click to save checkmarks in this file": {},
+    "Close Window": {},
+    "Close review": {},
+    "Close review (Esc)": {},
+    "Comfortable width": {},
+    "Copy": {},
+    "Could not activate checklist controls: %@": {},
+    "Could not read live preview: %@": {},
+    "Could not refresh: %@": {},
+    "Couldn’t load “%@”: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Couldn’t load “%1$@”: %2$@"
+          }
+        }
+      }
+    },
+    "Dark": {},
+    "Document Language": {},
+    "Document appearance": {},
+    "Document content": {},
+    "Done": {},
+    "Don’t show again": {},
+    "Drafts": {},
+    "Drafts Preview": {},
+    "Drafts detected": {},
+    "Drafts isn’t installed": {},
+    "Edit": {},
+    "Edited": {},
+    "Embedded HTML": {},
+    "Enable once": {},
+    "Enable your editor’s Marked streaming preview integration, then start editing. In Drafts, use Settings → General. Marked can stay closed.": {},
+    "File": {},
+    "File updates paused.": {},
+    "File updates resumed.": {},
+    "Find in document": {},
+    "Find in document (⌘F)": {},
+    "Finder Quick Look": {},
+    "Find…": {},
+    "Finish importing Preview in MDView in Drafts.": {},
+    "Focus Document": {},
+    "Follow an editor’s Marked-compatible preview stream.": {},
+    "Follows the editor publishing to the Marked-compatible channel. Source names are supplied by the editor.": {},
+    "For this document only. Automatic detects its language on this Mac when enough text is available; choose a language to control pronunciation. Interface language is separate.": {},
+    "For this document only. Each checkbox change is saved immediately; Undo is available.": {},
+    "For this document only. HTTPS image hosts can see your IP address and that you opened their image. Off each time a document is opened.": {},
+    "Formatting, a link target, an image, or task status changed.": {},
+    "Full Width": {},
+    "Full width": {},
+    "Full width by default": {},
+    "HTML tags written directly in Markdown, such as <div> or <iframe>, are omitted to prevent active embedded content. Standard Markdown tables, links and images work. Scripts and embedded websites cannot run.": {},
+    "Heading level %lld": {},
+    "Hidden": {},
+    "Hide MDView": {},
+    "Hide Others": {},
+    "Hold this preview while you edit or switch documents": {},
+    "Image %@: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Image %1$@: %2$@"
+          }
+        }
+      }
+    },
+    "In a document’s Reading options (…) choose Load Remote Images to allow HTTPS images for that window. Hosts can see your IP address and image requests. MDView sends no document referrer. The choice resets on closing; Quick Look never loads remote images.": {},
+    "Install Drafts Action…": {},
+    "Install Drafts before importing the MDView preview action.": {},
+    "Integrations": {},
+    "Jump to a heading": {},
+    "Jump to heading": {},
+    "Keeps the checkmarks already saved. Clicking a checkbox again asks before saving further changes.": {},
+    "Large document: changes compared by section position.": {},
+    "Last refreshed %@": {},
+    "Light": {},
+    "Link %@: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Link %1$@: %2$@"
+          }
+        }
+      }
+    },
+    "Live Streaming Preview": {},
+    "Live preview unavailable": {},
+    "Live stream": {},
+    "Live streaming": {},
+    "Load Remote Images": {},
+    "Local images": {},
+    "Local images load automatically from relative paths, absolute paths, file URLs and symlinks wherever macOS allows access. MDView does not require image-folder grants. Image formats are handled by WebKit. Quick Look supports embedded data images only.": {},
+    "MDView": {},
+    "MDView Settings": {},
+    "MDView Setup": {},
+    "Make MDView part of your workflow": {},
+    "Mark All Reviewed": {},
+    "Mark This Reviewed": {},
+    "Markdown document": {},
+    "Markdown, ready to read.": {},
+    "Minimize": {},
+    "New saved changes will appear here automatically. Reviewing changes never modifies the file.": {},
+    "Newer version waiting": {},
+    "Next Unchecked Task": {},
+    "Next Unreviewed Change": {},
+    "Next change": {},
+    "Next match": {},
+    "No headings": {},
+    "No matches": {},
+    "No matches for “%@”": {},
+    "No unchecked tasks.": {},
+    "Not rendered": {},
+    "OUTLINE": {},
+    "Off by default": {},
+    "Open Extension Settings…": {},
+    "Open General → Login Items & Extensions.": {},
+    "Open Live Preview": {},
+    "Open Markdown…": {},
+    "Open Privacy & Security → Extensions.": {},
+    "Open Recent": {},
+    "Open a file to view it. Changes appear automatically.\nYou can also preview a draft or use Finder’s Quick Look.": {},
+    "Open…": {},
+    "Outline": {},
+    "Outline sidebar": {},
+    "Pause": {},
+    "Pause Updates": {},
+    "Pause live preview": {},
+    "Preview Markdown in Finder with the Space bar.": {},
+    "Preview files without opening a document window.": {},
+    "Preview the current draft without changing it.": {},
+    "Previous Unchecked Task": {},
+    "Previous Unreviewed Change": {},
+    "Previous change": {},
+    "Previous match": {},
+    "Quit MDView": {},
+    "Read-only • Tables • Links • Code blocks": {},
+    "Reading": {},
+    "Reading options": {},
+    "Reading width": {},
+    "Redo": {},
+    "Redo Checkbox Change": {},
+    "Refresh failed": {},
+    "Reload": {},
+    "Remote images": {},
+    "Removed": {},
+    "Rendering Markdown…": {},
+    "Resume": {},
+    "Resume Updates": {},
+    "Resume Updates to show the latest saved version. Checkmarks cannot save while a newer version is waiting.": {},
+    "Resume following the editor and show its latest text": {},
+    "Resume live preview": {},
+    "Resume updates before saving more checkmarks.": {},
+    "Retry": {},
+    "Return to Navigation": {},
+    "Reveal in Finder": {},
+    "Review Changes": {},
+    "Review changes": {},
+    "Review saved changes (⇧⌘R)": {},
+    "Save Checkmarks": {},
+    "Save Checkmarks Automatically": {},
+    "Save checkmarks to this file?": {},
+    "Save this checkbox change to the Markdown file": {},
+    "Saved file changes appear automatically. Use Review Changes to compare with the last version you marked reviewed.": {},
+    "Saving checkbox…": {},
+    "Select All": {},
+    "Select a Markdown file in Finder and press Space.": {},
+    "Services": {},
+    "Settings…": {},
+    "Show All": {},
+    "Show Setup Guide…": {},
+    "Show in Document": {},
+    "Shown": {},
+    "Snapshot preview": {},
+    "Stop Saving Checkmarks": {},
+    "System": {},
+    "Task": {},
+    "The Drafts action is missing from this MDView build.": {},
+    "The bundled Markdown renderer could not be loaded.": {},
+    "The file changed before the checkbox could be saved. MDView refreshed it; please try again.": {},
+    "The saved file matches the displayed version.": {},
+    "This checklist cannot be mapped safely. Checkboxes remain disabled.": {},
+    "This document exceeds MDView’s 8 MB preview limit.": {},
+    "This file is not UTF-8 or BOM-marked UTF-16 text.": {},
+    "This preview does not receive live updates.": {},
+    "This preview is held. Resume to show the latest streamed text.": {},
+    "Toggle Outline": {},
+    "Toggle outline (⌥⌘O)": {},
+    "Two optional ways to preview your Markdown.": {},
+    "Unchecked checkbox": {},
+    "Undo": {},
+    "Undo Checkbox Change": {},
+    "Updates paused": {},
+    "Updates paused. A newer version is waiting.": {},
+    "Use comfortable reading width": {},
+    "Use full window width": {},
+    "Use mdview://preview?text=…&title=… to preview Markdown.": {},
+    "View": {},
+    "Waiting for a live stream": {},
+    "Window": {},
+    "You can return to these options in MDView Settings.": {},
+    "Zoom": {},
+    "Zoom In": {},
+    "Zoom Out": {},
+    "hidden": {},
+    "shown": {}
+  },
+  "version": "1.0"
+}

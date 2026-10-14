@@ -21,6 +21,7 @@ final class ReaderState {
             checklistUndo.removeAll(); checklistRedo.removeAll()
             localImageError = nil
             fileUpdatesPaused = false; pendingFileSource = nil
+            documentLanguageOverride = nil
         }
     }
     var rendered: RenderedMarkdown?
@@ -83,6 +84,7 @@ final class ReaderState {
     var zoom = 1.0
     var wide = UserDefaults.standard.object(forKey: "wideLayout") as? Bool ?? true
     var documentAppearance = DocumentAppearance.system
+    var documentLanguageOverride: String?
     var loadRemoteImages = false
     var localImageError: String? {
         didSet { report(localImageError, oldValue: oldValue, topic: .imageFailure) }
@@ -110,7 +112,9 @@ final class ReaderState {
     private func announceReview() {
         if let change = selectedChange {
             let index = max(0, currentChangeIndex) + 1
-            announcements.schedule(String(localized: "Change \(index) of \(changes.count). \(change.kind.rawValue). \(changes.count) remaining."), topic: .review)
+            let position = String(localized: "Change \(index) of \(changes.count). \(change.kind.localizedTitle).")
+            let remaining = String(localized: "\(changes.count) changes remaining.")
+            announcements.schedule(position + " " + remaining, topic: .review)
         } else {
             announcements.schedule(String(localized: "All changes reviewed."), topic: .review)
         }
@@ -335,12 +339,12 @@ final class ReaderState {
         renderTask?.cancel()
         isRendering = true
         let text = source, title = title, wide = wide, loadRemoteImages = loadRemoteImages
-        let appearance = documentAppearance
+        let appearance = documentAppearance, language = documentLanguageOverride
         let baseline = fileURL == nil ? nil : reviewedSource
         let units = fileURL == nil ? nil : reviewedUnits
         renderTask = Task { [weak self] in
             do {
-                let output = try await MarkdownRenderer.shared.render(text, title: title, wide: wide, baseline: baseline, reviewedUnits: units, loadRemoteImages: loadRemoteImages, appearance: appearance, mapTasks: self?.fileURL != nil)
+                let output = try await MarkdownRenderer.shared.render(text, title: title, wide: wide, baseline: baseline, reviewedUnits: units, loadRemoteImages: loadRemoteImages, appearance: appearance, mapTasks: self?.fileURL != nil, documentLanguage: language)
                 guard !Task.isCancelled else { return }
                 self?.rendered = output
                 self?.errorMessage = nil
@@ -389,7 +393,7 @@ final class ReaderState {
                 receiveFileUpdate(newSource)
             } catch {
                 guard !Task.isCancelled else { return }
-                errorMessage = "Could not refresh: \(error.localizedDescription)"
+                errorMessage = String(localized: "Could not refresh: \(error.localizedDescription)")
             }
         }
     }
@@ -417,7 +421,7 @@ final class ReaderState {
                 } catch {
                     lastCount = stream.pasteboard.changeCount
                     streamIsReceiving = false
-                    streamError = "Could not read live preview: \(error.localizedDescription)"
+                    streamError = String(localized: "Could not read live preview: \(error.localizedDescription)")
                 }
             }
             do { try await Task.sleep(for: .milliseconds(200)) } catch { return }

@@ -2,7 +2,16 @@ import Foundation
 import SwiftSoup
 
 struct DocumentChange: Identifiable, Sendable {
-    enum Kind: String, Sendable { case added = "Added", edited = "Edited", removed = "Removed" }
+    enum Kind: String, Sendable {
+        case added = "Added", edited = "Edited", removed = "Removed"
+        var localizedTitle: String {
+            switch self {
+            case .added: String(localized: "Added")
+            case .edited: String(localized: "Edited")
+            case .removed: String(localized: "Removed")
+            }
+        }
+    }
     let id: Int
     let kind: Kind
     let targetID: String?
@@ -136,7 +145,7 @@ enum DocumentChanges {
                             target = "mdview-change-\(index)"
                             try updated.attr("id", target!)
                         }
-                        try updated.attr("aria-description", kind.rawValue + " since last review")
+                        try updated.attr("aria-description", String(localized: "\(kind.localizedTitle) since last review"))
                         if let previous { try highlightWords(in: updated, comparedWith: previous) }
                     }
                     summary.entries.append(DocumentChange(id: index, kind: kind, targetID: target,

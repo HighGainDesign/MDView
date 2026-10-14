@@ -4,13 +4,13 @@ struct QuickLookInstructions: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if #available(macOS 15, *) {
-                instruction(1, "Open General → Login Items & Extensions.")
-                instruction(2, "Choose By Category → Quick Look, then enable MDView.")
+                instruction(1, String(localized: "Open General → Login Items & Extensions."))
+                instruction(2, String(localized: "Choose By Category → Quick Look, then enable MDView."))
             } else {
-                instruction(1, "Open Privacy & Security → Extensions.")
-                instruction(2, "Choose Quick Look, then enable MDView.")
+                instruction(1, String(localized: "Open Privacy & Security → Extensions."))
+                instruction(2, String(localized: "Choose Quick Look, then enable MDView."))
             }
-            instruction(3, "Select a Markdown file in Finder and press Space.")
+            instruction(3, String(localized: "Select a Markdown file in Finder and press Space."))
         }
     }
 

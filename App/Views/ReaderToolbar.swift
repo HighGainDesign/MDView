@@ -75,7 +75,7 @@ struct ReaderToolbar: View {
                 }
                 .help("Review saved changes (⇧⌘R)")
                 .accessibilityLabel("Review changes")
-                .accessibilityValue("\(reader.changes.count) unreviewed changes, panel \(reader.showChanges ? "shown" : "hidden")")
+                .accessibilityValue("\(reader.changes.count) unreviewed changes, panel \(reader.showChanges ? String(localized: "shown") : String(localized: "hidden"))")
                 .tint(reader.showChanges ? .accentColor : .secondary)
                 .focused($reviewFocused)
                 .fixedSize()
@@ -102,6 +102,13 @@ struct ReaderToolbar: View {
 
             Menu {
                 Toggle("Full Width", isOn: $reader.wide)
+                Picker("Document Language", selection: $reader.documentLanguageOverride) {
+                    Text("Automatic").tag(Optional<String>.none)
+                    ForEach(DocumentLanguage.menuCodes.sorted(by: { DocumentLanguage.displayName($0).localizedStandardCompare(DocumentLanguage.displayName($1)) == .orderedAscending }), id: \.self) { code in
+                        Text(DocumentLanguage.displayName(code)).tag(Optional(code))
+                    }
+                }
+                .help("For this document only. Automatic detects its language on this Mac when enough text is available; choose a language to control pronunciation. Interface language is separate.")
                 Toggle("Load Remote Images", isOn: $reader.loadRemoteImages)
                     .help("For this document only. HTTPS image hosts can see your IP address and that you opened their image. Off each time a document is opened.")
                 Divider()
@@ -151,7 +158,7 @@ struct ReaderStatusBar: View {
             }
             Spacer(minLength: 8)
             if let rendered = reader.rendered {
-                Text("\(rendered.wordCount.formatted()) words").monospacedDigit().fixedSize()
+                Text("\(rendered.wordCount) words").monospacedDigit().fixedSize()
             }
         }
         .font(.caption).foregroundStyle(.secondary)
@@ -161,10 +168,10 @@ struct ReaderStatusBar: View {
     }
 
     private var streamStatus: String {
-        let source = reader.streamSourceName ?? "Live stream"
-        if reader.streamPaused { return "\(source) · Paused" }
-        if reader.streamError != nil { return "Live preview unavailable" }
-        return reader.streamIsReceiving ? "\(source) · Live" : "Waiting for a live stream"
+        let source = reader.streamSourceName ?? String(localized: "Live stream")
+        if reader.streamPaused { return String(localized: "\(source) · Paused") }
+        if reader.streamError != nil { return String(localized: "Live preview unavailable") }
+        return reader.streamIsReceiving ? String(localized: "\(source) · Live") : String(localized: "Waiting for a live stream")
     }
 
     private var streamSymbol: String {

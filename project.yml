@@ -11,9 +11,10 @@ settings:
     CODE_SIGN_IDENTITY: '-'
     CODE_SIGN_STYLE: Manual
     DEVELOPMENT_TEAM: UX8BPNLPX5
-    MARKETING_VERSION: '1.2.2'
-    CURRENT_PROJECT_VERSION: 31
+    MARKETING_VERSION: '1.3.0'
+    CURRENT_PROJECT_VERSION: 32
     ENABLE_DEBUG_DYLIB: NO
+    SWIFT_EMIT_LOC_STRINGS: YES
 packages:
   Apex:
     url: https://github.com/ApexMarkdown/apex.git

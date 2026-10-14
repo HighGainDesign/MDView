@@ -23,8 +23,8 @@ enum DraftsIntegration {
         case draftsNotInstalled, actionNotBundled
         var errorDescription: String? {
             switch self {
-            case .draftsNotInstalled: "Install Drafts before importing the MDView preview action."
-            case .actionNotBundled: "The Drafts action is missing from this MDView build."
+            case .draftsNotInstalled: String(localized: "Install Drafts before importing the MDView preview action.")
+            case .actionNotBundled: String(localized: "The Drafts action is missing from this MDView build.")
             }
         }
     }
