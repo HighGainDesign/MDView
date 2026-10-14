@@ -54,7 +54,21 @@ jobs:
           xcodegen generate
           xcodebuild -project MDView.xcodeproj -scheme MDView -configuration Debug \
             -destination 'platform=macOS' -derivedDataPath "$RUNNER_TEMP/MDView-tests" \
-            CODE_SIGN_IDENTITY=- test > "$RUNNER_TEMP/tests.log" 2>&1 || { tail -80 "$RUNNER_TEMP/tests.log"; exit 1; }
+            CODE_SIGN_IDENTITY=- test > "$RUNNER_TEMP/tests.log" 2>&1 || {
+              grep -n -E 'error:|failed|Failing tests:' "$RUNNER_TEMP/tests.log" || true
+              tail -80 "$RUNNER_TEMP/tests.log"
+              exit 1
+            }
+
+      - name: Preserve test failure details
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-failure-details
+          path: |
+            ${{ runner.temp }}/tests.log
+            ${{ runner.temp }}/MDView-tests/Logs/Test
+          retention-days: 7
 
       - name: Install temporary signing and notarization credentials
         env:

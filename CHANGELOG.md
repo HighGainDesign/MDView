@@ -1,6 +1,9 @@
 # Changelog
 
-## 1.2.0 — 2026-10-14
+## 1.2.1 — 2026-10-14
+
+First published 1.2 release. The unpublished 1.2.0 tag stopped at hosted tests;
+layout test windows now retain their requested sizes on small virtual displays.
 
 - Local images use normal macOS filesystem access, including relative paths, absolute paths, local file URLs and symlinks. Image-folder grants and document-folder boundaries have been removed; macOS privacy and file permissions still apply. Remote images remain off by default.
 - Click a task checkbox to allow automatic checkmark saves for that document. Cancel makes no change; confirming also saves the first tick. Only the marker changes; Undo/Redo is available.

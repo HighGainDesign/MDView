@@ -113,7 +113,7 @@ final class ReviewLayoutTests: XCTestCase {
         try source.write(to: file, atomically: true, encoding: .utf8)
         let reader = ReaderState(); reader.fileURL = file; reader.source = source; reader.render()
         let controller = NSHostingController(rootView: ReaderView(reader: reader))
-        let window = NSWindow(contentViewController: controller)
+        let window = LayoutTestWindow(contentViewController: controller)
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
         window.setContentSize(NSSize(width: width, height: 720)); window.makeKeyAndOrderFront(nil)
         for _ in 0..<200 {
@@ -161,5 +161,11 @@ final class ReviewLayoutTests: XCTestCase {
         if let web = view as? WKWebView { return web }
         for child in view.subviews { if let web = findWebView(child) { return web } }
         return nil
+    }
+
+    /// Exercise the requested layout width even on CI's 1024-point display.
+    /// Normal AppKit ordering otherwise shrinks a wide fixture to that screen.
+    private final class LayoutTestWindow: NSWindow {
+        override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }
     }
 }
