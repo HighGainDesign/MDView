@@ -42,7 +42,7 @@ final class ReviewLayoutTests: XCTestCase {
         let fixture = try await makeFixture(width: 1_200)
         defer { fixture.window.close(); fixture.reader.stop(); try? FileManager.default.removeItem(at: fixture.file) }
         let originalWebView = try XCTUnwrap(findWebView(fixture.controller.view))
-        let originalPage = try await originalWebView.evaluateJavaScript("performance.timeOrigin") as! Double
+        _ = try await originalWebView.evaluateJavaScript("window.mdviewTestDocument = document; true")
         fixture.reader.showChanges = true
         let panel = try await waitForPanel(in: fixture.controller.view)
         let document = frameInScreen(originalWebView)
@@ -55,8 +55,8 @@ final class ReviewLayoutTests: XCTestCase {
         let withOutline = try await waitForPanel(in: fixture.controller.view)
         XCTAssertGreaterThanOrEqual(withOutline.minX, frameInScreen(originalWebView).maxX - 1)
         XCTAssertTrue(findWebView(fixture.controller.view) === originalWebView)
-        let updatedPage = try await originalWebView.evaluateJavaScript("performance.timeOrigin") as! Double
-        XCTAssertEqual(updatedPage, originalPage)
+        let sameDocument = try await originalWebView.evaluateJavaScript("window.mdviewTestDocument === document") as! Bool
+        XCTAssertTrue(sameDocument, "Changing review layout must retain the document")
         XCTAssertEqual(try MarkdownSource.read(fixture.file), fixture.updated)
     }
 
@@ -64,7 +64,7 @@ final class ReviewLayoutTests: XCTestCase {
         let fixture = try await makeFixture(width: 1_200)
         defer { fixture.window.close(); fixture.reader.stop(); try? FileManager.default.removeItem(at: fixture.file) }
         let originalWebView = try XCTUnwrap(findWebView(fixture.controller.view))
-        let originalPage = try await originalWebView.evaluateJavaScript("performance.timeOrigin") as! Double
+        _ = try await originalWebView.evaluateJavaScript("window.mdviewTestDocument = document; true")
         fixture.reader.showChanges = true
         _ = try await waitForPanel(in: fixture.controller.view)
         fixture.window.setContentSize(NSSize(width: 480, height: 360))
@@ -93,8 +93,8 @@ final class ReviewLayoutTests: XCTestCase {
         }
         XCTAssertNil(panelFrame(in: fixture.controller.view))
         XCTAssertTrue(findWebView(fixture.controller.view) === originalWebView)
-        let updatedPage = try await originalWebView.evaluateJavaScript("performance.timeOrigin") as! Double
-        XCTAssertEqual(updatedPage, originalPage)
+        let sameDocument = try await originalWebView.evaluateJavaScript("window.mdviewTestDocument === document") as! Bool
+        XCTAssertTrue(sameDocument, "Changing review layout must retain the document")
         XCTAssertEqual(try MarkdownSource.read(fixture.file), fixture.updated)
     }
 

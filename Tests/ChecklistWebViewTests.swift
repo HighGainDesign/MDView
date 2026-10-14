@@ -80,10 +80,12 @@ final class ChecklistWebViewTests: XCTestCase {
         try await waitForDisabled(false, in: controller.view)
         let webView = try XCTUnwrap(findWebView(controller.view))
         let before = try await webView.callAsyncJavaScript("""
+        // Retain the actual document; performance.timeOrigin is a rounded clock, not an identity.
+        window.mdviewTestDocument = document;
         window.inputBefore = document.querySelector('input[data-mdview-task="25"]');
         window.imageBefore = document.querySelector('img');
         window.inputBefore.scrollIntoView({block: 'center', behavior: 'instant'});
-        return { y: window.scrollY, page: performance.timeOrigin };
+        return { y: window.scrollY };
         """, arguments: [:], in: nil, contentWorld: MarkdownWebView.Coordinator.taskWorld) as! [String: Double]
         XCTAssertGreaterThan(before["y"]!, 1_000)
         _ = try await webView.callAsyncJavaScript("""
@@ -98,9 +100,11 @@ final class ChecklistWebViewTests: XCTestCase {
         }
         XCTAssertTrue(saved)
         let after = try await webView.callAsyncJavaScript("""
-        return { y: window.scrollY, page: performance.timeOrigin };
+        return { y: window.scrollY };
         """, arguments: [:], in: nil, contentWorld: MarkdownWebView.Coordinator.taskWorld) as! [String: Double]
-        XCTAssertEqual(after["page"], before["page"], "A tick must not navigate to a new webpage")
+        let sameDocument = try await webView.callAsyncJavaScript("return window.mdviewTestDocument === document;",
+            arguments: [:], in: nil, contentWorld: MarkdownWebView.Coordinator.taskWorld) as! Bool
+        XCTAssertTrue(sameDocument, "A tick must not navigate to a new webpage")
         XCTAssertEqual(after["y"]!, before["y"]!, accuracy: 2)
         let sameInput = try await webView.callAsyncJavaScript("return document.querySelector('input[data-mdview-task=\"25\"]') === window.inputBefore;",
             arguments: [:], in: nil, contentWorld: MarkdownWebView.Coordinator.taskWorld) as! Bool
@@ -121,7 +125,7 @@ final class ChecklistWebViewTests: XCTestCase {
         defer { window.close(); reader.stop(); try? FileManager.default.removeItem(at: file) }
         try await waitForDisabled(false, in: controller.view)
         let webView = try XCTUnwrap(findWebView(controller.view))
-        let page = try await webView.evaluateJavaScript("performance.timeOrigin") as! Double
+        _ = try await webView.evaluateJavaScript("window.mdviewTestDocument = document; true")
         reader.loadRemoteImages = true // No image URLs in the sample; no network requests.
         var changed = false
         for _ in 0..<200 {
@@ -130,8 +134,8 @@ final class ChecklistWebViewTests: XCTestCase {
             try await Task.sleep(for: .milliseconds(20))
         }
         XCTAssertTrue(changed)
-        let newPage = try await webView.evaluateJavaScript("performance.timeOrigin") as! Double
-        XCTAssertNotEqual(newPage, page, "Policy changes must use a fresh navigation")
+        let sameDocument = try await webView.evaluateJavaScript("window.mdviewTestDocument === document") as! Bool
+        XCTAssertFalse(sameDocument, "Policy changes must use a fresh navigation")
     }
 
     private func waitForDisabled(_ expected: Bool, in view: NSView) async throws {
