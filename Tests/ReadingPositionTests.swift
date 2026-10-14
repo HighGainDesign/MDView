@@ -64,21 +64,34 @@ final class ReadingPositionTests: XCTestCase {
     func testPolicyNavigationRestoresSemanticAnchorRatherThanAbsoluteOffset() async throws {
         let fixture = try await fixture()
         defer { fixture.close() }
+        fixture.reader.navigate(to:"mdview-section-30")
+        for _ in 0..<100 {
+            if let focused = try? await fixture.web.evaluateJavaScript("document.activeElement.id === 'mdview-section-30'") as? Bool, focused { break }
+            try await Task.sleep(for:.milliseconds(20))
+        }
         _ = try await fixture.web.callAsyncJavaScript("""
         const anchor = document.getElementById('mdview-section-30');
         window.scrollTo({top: anchor.getBoundingClientRect().top + scrollY - 25, behavior:'instant'});
         window.oldDocument = document;
         """, arguments: [:], in: nil, contentWorld: MarkdownWebView.Coordinator.taskWorld)
+        let beforePolicy = try await fixture.web.evaluateJavaScript("document.getElementById('mdview-section-30').getBoundingClientRect().top") as! Double
+        XCTAssertEqual(beforePolicy,25,accuracy:2,"Precondition: position before policy navigation")
         fixture.reader.loadRemoteImages = true
         for _ in 0..<200 {
             if let allowed = try? await fixture.web.evaluateJavaScript("document.querySelector('meta[http-equiv=\"Content-Security-Policy\"]').content.includes('https:')") as? Bool, allowed { break }
             try await Task.sleep(for: .milliseconds(20))
         }
-        try await Task.sleep(for: .milliseconds(100))
+        for _ in 0..<200 {
+            if !fixture.web.isLoading,
+               let focused = try? await fixture.web.evaluateJavaScript("document.activeElement.id === 'mdview-section-30'") as? Bool, focused { break }
+            try await Task.sleep(for:.milliseconds(20))
+        }
         let top = try await fixture.web.evaluateJavaScript("document.getElementById('mdview-section-30').getBoundingClientRect().top") as! Double
         XCTAssertEqual(top, 25, accuracy: 2)
         let sameDocument = try await fixture.web.callAsyncJavaScript("return window.oldDocument === document;", arguments: [:], in: nil, contentWorld: MarkdownWebView.Coordinator.taskWorld) as! Bool
         XCTAssertFalse(sameDocument)
+        let activeID = try await fixture.web.evaluateJavaScript("document.activeElement.id") as? String
+        XCTAssertEqual(activeID,"mdview-section-30","Policy reload should restore the document's focused reading target")
     }
 
     func testFindRequestedDuringSaveKeepsTypingFocusAfterSaveCompletes() async throws {
@@ -170,6 +183,21 @@ final class ReadingPositionTests: XCTestCase {
         }
         let actual = try? await web.evaluateJavaScript("document.activeElement.outerHTML")
         XCTFail("Expected task \(id) focus, got \(String(describing:actual))")
+    }
+
+    func testFocusedHeadingSurvivesAnExternalInsertion() async throws {
+        let fixture = try await fixture()
+        defer { fixture.close() }
+        fixture.reader.navigate(to:"mdview-section-30")
+        for _ in 0..<100 {
+            if let focused = try? await fixture.web.evaluateJavaScript("document.activeElement.id === 'mdview-section-30'") as? Bool, focused { break }
+            try await Task.sleep(for:.milliseconds(20))
+        }
+        _ = try await fixture.web.callAsyncJavaScript("window.focusedHeading = document.activeElement;",arguments:[:],in:nil,contentWorld:MarkdownWebView.Coordinator.taskWorld)
+        fixture.reader.acceptFileUpdate("# Extra context\n\nInserted above.\n\n" + fixture.source)
+        try await waitForHeading("mdview-extra-context",in:fixture.web)
+        let retained = try await fixture.web.callAsyncJavaScript("return document.activeElement === window.focusedHeading && document.activeElement.id === 'mdview-section-30';",arguments:[:],in:nil,contentWorld:MarkdownWebView.Coordinator.taskWorld) as! Bool
+        XCTAssertTrue(retained,"Refreshing should retain the reader's focused heading")
     }
 
     @MainActor private struct Fixture {

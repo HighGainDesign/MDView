@@ -133,6 +133,46 @@ final class ReaderUpdatesTests: XCTestCase {
         XCTAssertNil(reader.errorMessage)
     }
 
+    func testLateSaveCompletionCannotReplaceNewerAgentTextOrRestoreStaleUndo() async throws {
+        for pauseThenResume in [false,true] {
+            let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".md")
+            defer { try? FileManager.default.removeItem(at:file) }
+            let gate = SaveResultGate()
+            let reader = ReaderState(checklistWriter: { url,source,task,marker in
+                let result = try await ChecklistFileStore.setMarker(at:url,source:source,task:task,marker:marker)
+                await gate.holdResult()
+                return result
+            })
+            defer { gate.release(); reader.stop() }
+            reader.fileURL = file; reader.source = "- [ ] Original\n"
+            try reader.source.write(to:file,atomically:true,encoding:.utf8)
+            reader.render(); try await settle(reader); reader.checklistMode = true
+            reader.setFileUpdatesPaused(pauseThenResume)
+            reader.setTaskChecked(0,checked:true)
+            for _ in 0..<200 where !gate.waiting { try await Task.sleep(for:.milliseconds(10)) }
+            XCTAssertTrue(gate.waiting)
+            XCTAssertEqual(try MarkdownSource.read(file),"- [x] Original\n")
+            let agent = "- [ ] New task from agent\n"
+            try agent.write(to:file,atomically:true,encoding:.utf8)
+            reader.receiveFileUpdate(agent)
+            if pauseThenResume { reader.setFileUpdatesPaused(false) }
+            gate.release(); try await settle(reader)
+            XCTAssertEqual(reader.source,agent,"A completed old write must not replace a newer displayed update")
+            XCTAssertEqual(try MarkdownSource.read(file),agent)
+            XCTAssertFalse(reader.canUndoChecklist,"Late completion must not revive obsolete history")
+        }
+    }
+
+    @MainActor private final class SaveResultGate {
+        var waiting = false
+        private var continuation: CheckedContinuation<Void,Never>?
+        func holdResult() async {
+            waiting = true
+            await withCheckedContinuation { continuation = $0 }
+        }
+        func release() { continuation?.resume(); continuation = nil }
+    }
+
     private func settle(_ reader: ReaderState) async throws {
         for _ in 0..<300 {
             if !reader.isRendering && !reader.checklistSaving { return }

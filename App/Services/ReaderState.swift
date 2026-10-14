@@ -3,12 +3,18 @@ import Observation
 
 @MainActor @Observable
 final class ReaderState {
+    typealias ChecklistWriter = @Sendable (URL, String, MarkdownTask, UInt8) async throws -> String
+    private let checklistWriter: ChecklistWriter
     let announcements: ReaderAnnouncements
     private var pendingChangesAnnouncement = false
     private var pendingReviewAnnouncement = false
 
-    init(announcements: ReaderAnnouncements = ReaderAnnouncements()) {
+    init(announcements: ReaderAnnouncements = ReaderAnnouncements(),
+         checklistWriter: @escaping ChecklistWriter = { url, source, task, marker in
+             try await ChecklistFileStore.setMarker(at: url, source: source, task: task, marker: marker)
+         }) {
         self.announcements = announcements
+        self.checklistWriter = checklistWriter
     }
     var source = ""
     var title = "Markdown"
@@ -79,8 +85,8 @@ final class ReaderState {
     private var checklistUndo: [ChecklistOperation] = []
     private var checklistRedo: [ChecklistOperation] = []
 
-    var canUndoChecklist: Bool { checklistMode && !checklistSaving && !isRendering && !checklistUndo.isEmpty }
-    var canRedoChecklist: Bool { checklistMode && !checklistSaving && !isRendering && !checklistRedo.isEmpty }
+    var canUndoChecklist: Bool { !hasPendingFileUpdate && checklistMode && !checklistSaving && !isRendering && !checklistUndo.isEmpty }
+    var canRedoChecklist: Bool { !hasPendingFileUpdate && checklistMode && !checklistSaving && !isRendering && !checklistRedo.isEmpty }
     var zoom = 1.0
     var wide = UserDefaults.standard.object(forKey: "wideLayout") as? Bool ?? true
     var documentAppearance = DocumentAppearance.system
@@ -307,16 +313,30 @@ final class ReaderState {
         } catch { checklistError = error.localizedDescription; return }
         checklistSaving = true
         checklistError = nil
+        let writer = checklistWriter
         Task { [weak self] in
             do {
-                let updated = try await ChecklistFileStore.setMarker(at: fileURL, source: expected, task: task, marker: marker)
+                let updated = try await writer(fileURL, expected, task, marker)
                 guard let self, self.fileURL == fileURL else { return }
+                // A newer file reception may have completed while the committed
+                // write's result was travelling back to the UI actor.
+                guard source == expected || source == updated else {
+                    checklistSaving = false; pendingChecklistSource = nil
+                    checklistUndo.removeAll(); checklistRedo.removeAll()
+                    checklistError = ChecklistError.changed.localizedDescription
+                    return
+                }
+                let newerVersionWaiting = pendingFileSource != nil && pendingFileSource != updated
                 acceptFileUpdate(updated)
                 let inverse = ChecklistOperation(task: MarkdownTask(id: task.id, utf8Offset: task.utf8Offset, marker: marker, label: task.label), marker: task.marker)
-                switch history {
-                case .normal: checklistUndo.append(inverse); checklistRedo.removeAll()
-                case .undo: if !checklistUndo.isEmpty { checklistUndo.removeLast() }; checklistRedo.append(inverse)
-                case .redo: if !checklistRedo.isEmpty { checklistRedo.removeLast() }; checklistUndo.append(inverse)
+                if newerVersionWaiting {
+                    checklistUndo.removeAll(); checklistRedo.removeAll()
+                } else {
+                    switch history {
+                    case .normal: checklistUndo.append(inverse); checklistRedo.removeAll()
+                    case .undo: if !checklistUndo.isEmpty { checklistUndo.removeLast() }; checklistRedo.append(inverse)
+                    case .redo: if !checklistRedo.isEmpty { checklistRedo.removeLast() }; checklistUndo.append(inverse)
+                    }
                 }
                 if checklistUndo.count > 100 { checklistUndo.removeFirst() }
                 checklistSaving = false

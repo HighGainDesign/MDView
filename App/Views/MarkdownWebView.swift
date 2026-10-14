@@ -63,6 +63,7 @@ struct MarkdownWebView: NSViewRepresentable {
         var navigationGeneration = -1
         var searchGeneration = -1
         private var readingPosition: [String: Any]?
+        private var readingPositionFocusIntent = -1
         private static let documentScript: String = {
             guard let url = Bundle.main.url(forResource: "reader-document", withExtension: "js"),
                   let script = try? String(contentsOf: url, encoding: .utf8) else { return "return false;" }
@@ -112,8 +113,12 @@ struct MarkdownWebView: NSViewRepresentable {
                 // JavaScript requested before the first navigation can wait for
                 // a document to exist. Load the first page without that wait.
                 if webView.url != nil {
-                    readingPosition = try? await webView.callAsyncJavaScript(Self.documentScript,
+                    let intent = reader.focusIntentGeneration
+                    let position = try? await webView.callAsyncJavaScript(Self.documentScript,
                         arguments: ["operation": "capture"], in: nil, contentWorld: Self.taskWorld) as? [String: Any]
+                    guard generation == loadGeneration else { return }
+                    readingPositionFocusIntent = intent
+                    readingPosition = position
                 }
                 guard generation == loadGeneration else { return }
                 activeLoadGeneration = generation
@@ -125,13 +130,17 @@ struct MarkdownWebView: NSViewRepresentable {
             guard navigation === activeNavigation, activeLoadGeneration == loadGeneration else { return }
             contentReady = true
             let position = readingPosition
+            let generation = loadGeneration, focusIntent = readingPositionFocusIntent
             let target = pendingTarget
             pendingTarget = nil
             Task {
+                guard generation == loadGeneration, contentReady else { return }
                 if let position {
                     _ = try? await webView.callAsyncJavaScript(Self.documentScript,
-                        arguments: ["operation": "restore", "position": position], in: nil, contentWorld: Self.taskWorld)
+                        arguments: ["operation": "restore", "position": position,
+                                    "restoreFocus": focusIntent == reader.focusIntentGeneration && Self.hasDocumentFocus(webView)], in: nil, contentWorld: Self.taskWorld)
                 }
+                guard generation == loadGeneration, contentReady else { return }
                 if let target { navigate(target) }
             }
             configureTasks()

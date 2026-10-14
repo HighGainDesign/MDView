@@ -17,11 +17,13 @@ function visibleAnchor() {
     return {top:node.getBoundingClientRect().top, candidates};
 }
 function descriptor(node) {
-    return {id:node.id, tag:node.tagName, text:node.textContent};
+    return {id:node.id, tag:node.tagName, text:node.textContent.slice(0,1024), length:node.textContent.length, label:node.getAttribute('aria-label')};
 }
 function snapshot() {
     const anchor = visibleAnchor();
+    const active = document.activeElement;
     return {x:scrollX, y:scrollY, top:anchor?.top ?? 0,
+        focus:active && main?.contains(active) ? descriptor(active) : null,
         candidates:anchor ? anchor.candidates.slice(0,128).map(descriptor) : []};
 }
 function scrollInstant(x,y) {
@@ -30,14 +32,26 @@ function scrollInstant(x,y) {
     window.scrollTo(x,y);
     document.documentElement.style.scrollBehavior = previous;
 }
+function locate(candidate, blocks) {
+    const matches = node => node.tagName === candidate.tag && node.textContent.length === candidate.length &&
+        node.textContent.slice(0,1024) === candidate.text && node.getAttribute('aria-label') === candidate.label;
+    const byID = candidate.id ? document.getElementById(candidate.id) : null;
+    return byID && matches(byID) ? byID : blocks.find(matches);
+}
 function restore(position) {
     if (!position) return;
     let target;
     const blocks = Array.from(document.querySelectorAll(selector));
     for (const candidate of position.candidates ?? []) {
-        if (candidate.id) target = document.getElementById(candidate.id);
-        if (!target) target = blocks.find(node => node.tagName === candidate.tag && node.textContent === candidate.text);
+        target = locate(candidate,blocks);
         if (target) break;
+    }
+    if (restoreFocus && position.focus) {
+        const active = locate(position.focus,Array.from(main?.querySelectorAll('*') ?? []));
+        if (active && !active.disabled) {
+            if (!active.matches('a[href],input,button,summary')) active.tabIndex = -1;
+            active.focus({preventScroll:true});
+        }
     }
     scrollInstant(position.x, target ? scrollY + target.getBoundingClientRect().top - position.top : position.y);
 }
@@ -66,7 +80,9 @@ if (operation === 'navigate') {
         if (!target.matches('a[href],input:not([disabled]),button,summary')) target.tabIndex = -1;
         target.focus({preventScroll:true});
     }
-    if (kind !== 'reading') target.scrollIntoView({block:'start'});
+    // Focused jumps are atomic: an older smooth-scroll animation must not
+    // keep moving the viewport after a policy reload or newer focus request.
+    if (kind !== 'reading') target.scrollIntoView({block:'start',behavior:focus ? 'instant' : 'auto'});
     return true;
 }
 if (operation === 'capture') return snapshot();
@@ -89,7 +105,7 @@ function identity(node) {
 }
 function compatible(a,b) { return a.nodeType === b.nodeType && a.nodeName === b.nodeName; }
 function attributes(a,b) {
-    for (const attr of Array.from(a.attributes)) if (!(a.tagName === 'INPUT' && attr.name === 'disabled') && !b.hasAttribute(attr.name)) a.removeAttribute(attr.name);
+    for (const attr of Array.from(a.attributes)) if (!(a.tagName === 'INPUT' && attr.name === 'disabled') && !(attr.name === 'tabindex' && attr.value === '-1') && !b.hasAttribute(attr.name)) a.removeAttribute(attr.name);
     for (const attr of Array.from(b.attributes)) if (!(a.tagName === 'INPUT' && attr.name === 'disabled') && a.getAttribute(attr.name) !== attr.value) a.setAttribute(attr.name,attr.value);
 }
 function reconcile(a,b) {
