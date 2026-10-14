@@ -1,0 +1,58 @@
+name: macOS tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag, or commit to test (blank uses this workflow's ref)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - name: Check out requested source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          persist-credentials: false
+
+      - name: Prepare build tools
+        run: |
+          brew install xcodegen
+          xcodebuild -version
+
+      - name: Run all tests
+        run: |
+          set -euo pipefail
+          xcodegen generate
+          xcodebuild -project MDView.xcodeproj -scheme MDView -configuration Debug \
+            -destination 'platform=macOS' -derivedDataPath "$RUNNER_TEMP/MDView-tests" \
+            -resultBundlePath "$RUNNER_TEMP/MDView-tests.xcresult" \
+            CODE_SIGN_IDENTITY=- test > "$RUNNER_TEMP/tests.log" 2>&1 || {
+              python3 - <<'PY'
+          import os
+          from pathlib import Path
+          lines = (Path(os.environ['RUNNER_TEMP']) / 'tests.log').read_text().splitlines()
+          for number, line in enumerate(lines):
+              if 'error:' in line or 'failed' in line or 'Executed ' in line:
+                  print('\n'.join(lines[max(0, number - 1):number + 3]))
+          PY
+              exit 1
+            }
+          tail -20 "$RUNNER_TEMP/tests.log"
+
+      - name: Preserve test diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: macos-test-diagnostics
+          path: |
+            ${{ runner.temp }}/tests.log
+            ${{ runner.temp }}/MDView-tests.xcresult
+          retention-days: 7
