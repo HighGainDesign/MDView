@@ -165,7 +165,8 @@ enum DocumentChanges {
     /// Describe the sanitized DOM already used for review, without reparsing Markdown.
     private static func accessibleDescription(_ element: Element?) throws -> String? {
         guard let element else { return nil }
-        let text = try element.text()
+        let fullText = try element.text()
+        let text = fullText.count > 1_200 ? String(fullText.prefix(1_200)) + "…" : fullText
         var details: [String] = []
         let checkboxes = try element.select("input[type=checkbox]").array()
         for checkbox in checkboxes {

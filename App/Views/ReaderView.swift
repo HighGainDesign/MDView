@@ -176,6 +176,7 @@ struct ReaderView: View {
                     }.buttonStyle(.plain)
                         .accessibilityValue("Heading level \(heading.level)")
                         .accessibilityIdentifier("outline-heading-" + heading.id)
+                        .focusable()
                         .focused($focusedOutlineHeading, equals: heading.id)
                         .accessibilityFocused($accessibleOutlineHeading, equals: heading.id)
                 }

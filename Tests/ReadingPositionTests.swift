@@ -114,6 +114,54 @@ final class ReadingPositionTests: XCTestCase {
         XCTAssertTrue(fixture.reader.source.contains("- [x] Task 30"))
     }
 
+    func testOrdinaryFocusMovementDuringSaveIsNotOverridden() async throws {
+        for nativeControl in [false, true] {
+            let gate = SaveFocusGate()
+            let fixture = try await fixture(checklistWriter: { url, source, task, marker in
+                let result = try await ChecklistFileStore.setMarker(at: url, source: source, task: task, marker: marker)
+                await gate.hold()
+                return result
+            })
+            defer { gate.release(); fixture.close() }
+            fixture.reader.checklistMode = true
+            fixture.window.makeFirstResponder(fixture.web)
+            _ = try await fixture.web.callAsyncJavaScript("""
+            document.querySelector('input[data-mdview-task="30"]').focus();
+            window.webkit.messageHandlers.taskToggle.postMessage({id:30,checked:true,token:window.mdviewTaskState.token});
+            """, arguments: [:], in: nil, contentWorld: MarkdownWebView.Coordinator.taskWorld)
+            for _ in 0..<200 where !gate.waiting { try await Task.sleep(for: .milliseconds(10)) }
+            XCTAssertTrue(gate.waiting)
+            let button = NSButton(title: "A different native control", target: nil, action: nil)
+            if nativeControl {
+                let host = try XCTUnwrap(fixture.window.contentView)
+                let wrapper = NSView(frame: host.frame)
+                fixture.window.contentView = wrapper
+                wrapper.addSubview(host); wrapper.addSubview(button)
+                fixture.window.makeFirstResponder(button)
+            }
+            else {
+                _ = try await fixture.web.callAsyncJavaScript("""
+                document.querySelector('a[href="#mdview-section-40"]').focus();
+                """, arguments: [:], in: nil, contentWorld: MarkdownWebView.Coordinator.taskWorld)
+            }
+            gate.release()
+            for _ in 0..<200 where fixture.reader.checklistSaving || fixture.reader.isRendering { try await Task.sleep(for: .milliseconds(20)) }
+            try await Task.sleep(for: .milliseconds(100))
+            if nativeControl { XCTAssertTrue(fixture.window.firstResponder === button, "An ordinary native focus move must survive save completion") }
+            else {
+                let active = try await fixture.web.evaluateJavaScript("document.activeElement.getAttribute('href')") as? String
+                XCTAssertEqual(active, "#mdview-section-40", "An ordinary link focus move must survive save completion")
+            }
+        }
+    }
+
+    @MainActor private final class SaveFocusGate {
+        var waiting = false
+        private var continuation: CheckedContinuation<Void, Never>?
+        func hold() async { waiting = true; await withCheckedContinuation { continuation = $0 } }
+        func release() { continuation?.resume(); continuation = nil }
+    }
+
     func testHeadingJumpFocusesDestinationAndNewerFindKeepsTypingFocus() async throws {
         let fixture = try await fixture()
         defer { fixture.close() }
@@ -151,6 +199,37 @@ final class ReadingPositionTests: XCTestCase {
         fixture.reader.jumpToUncheckedTask()
         try await waitForActiveTask("1", in:fixture.web)
         XCTAssertEqual(try MarkdownSource.read(fixture.file),fixture.source)
+    }
+
+    func testUncheckedNavigationUsesActualFocusBeforeCachedTask() async throws {
+        let fixture = try await fixture()
+        defer { fixture.close() }
+        fixture.reader.jumpToUncheckedTask()
+        try await waitForActiveTask("0", in: fixture.web)
+        _ = try await fixture.web.callAsyncJavaScript("document.querySelector('input[data-mdview-task=\"3\"]').focus();",
+            arguments: [:], in: nil, contentWorld: MarkdownWebView.Coordinator.taskWorld)
+        fixture.reader.jumpToUncheckedTask()
+        try await waitForActiveTask("4", in: fixture.web)
+        fixture.reader.jumpToUncheckedTask(backwards: true)
+        try await waitForActiveTask("3", in: fixture.web)
+    }
+
+    func testReturnToOutlineLeavesDocumentResponder() async throws {
+        let fixture = try await fixture()
+        defer { fixture.close() }
+        fixture.reader.navigate(to: "mdview-section-30")
+        for _ in 0..<100 {
+            if let focused = try? await fixture.web.evaluateJavaScript("document.activeElement.id === 'mdview-section-30'") as? Bool, focused { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        fixture.reader.returnToNavigation()
+        for _ in 0..<100 {
+            let responder = fixture.window.firstResponder as? NSView
+            if fixture.reader.showOutline, let responder,
+               responder !== fixture.web, !responder.isDescendant(of: fixture.web) { return }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        XCTFail("Returning to the outline must move the keyboard responder out of WebKit")
     }
 
     func testDocumentEntryKeepsReadingPositionAndReturnsToFind() async throws {
@@ -213,12 +292,13 @@ final class ReadingPositionTests: XCTestCase {
         "## Section \(index)\n\n- [ ] Task \(index)\n\n" + String(repeating: "Reading context for section \(index). ", count: 12) + "\n\n"
     }
 
-    private func fixture() async throws -> Fixture {
+    private func fixture(checklistWriter: ReaderState.ChecklistWriter? = nil) async throws -> Fixture {
         let image = "![Context image](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j5iQAAAAASUVORK5CYII=)\n\n"
-        let source = "# Reading\n\n" + image + (0..<60).map { Self.section($0) }.joined()
+        let source = "# Reading\n\n" + image + "[Other section](#section-40)\n\n" + (0..<60).map { Self.section($0) }.joined()
         let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".md")
         try source.write(to: file, atomically: true, encoding: .utf8)
-        let reader = ReaderState(); reader.fileURL = file; reader.source = source
+        let reader = checklistWriter.map { ReaderState(checklistWriter: $0) } ?? ReaderState()
+        reader.fileURL = file; reader.source = source
         reader.render()
         let controller = NSHostingController(rootView: ReaderView(reader: reader))
         let window = NSWindow(contentViewController: controller)

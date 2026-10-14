@@ -21,6 +21,18 @@ final class ChangeDescriptionTests: XCTestCase {
         XCTAssertNotEqual(change.beforeAccessibleText,change.afterAccessibleText)
     }
 
+    func testLongLinkOnlyChangeKeepsDestinationsInPresentedDescriptions() async throws {
+        let prose = String(repeating: "Context for the document. ", count: 100)
+        let output = try await MarkdownRenderer.shared.render(prose + "[Plan](https://example.com/new)\n",
+            baseline: prose + "[Plan](https://example.com/old)\n")
+        let change = try XCTUnwrap(output.changes.entries.first)
+        // The panel must bound prose before appending semantic details.
+        XCTAssertLessThan(change.beforeAccessibleText.count, 1_500)
+        XCTAssertTrue(change.beforeAccessibleText.contains("https://example.com/old"))
+        XCTAssertTrue(change.afterAccessibleText.contains("https://example.com/new"))
+        XCTAssertNotEqual(change.beforeAccessibleText, change.afterAccessibleText)
+    }
+
     func testImageOnlyChangeHasNonemptyAltAndSourceDescriptions() async throws {
         let output = try await MarkdownRenderer.shared.render("![New diagram](new.png)\n",baseline:"![Old diagram](old.png)\n")
         let change = try XCTUnwrap(output.changes.entries.first)

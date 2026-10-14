@@ -255,7 +255,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
         add(String(localized: "Toggle Outline"), to: view, action: #selector(toggleOutline(_:)), key: "o", modifiers: [.command, .option], target: self)
         view.addItem(.separator())
         add(String(localized: "Focus Document"), to: view, action: #selector(focusDocument(_:)), key: "d", modifiers: [.command, .option], target: self)
-        add(String(localized: "Return to Navigation"), to: view, action: #selector(returnToNavigation(_:)), key: String(UnicodeScalar(NSLeftArrowFunctionKey)!), modifiers: [.command, .option], target: self)
+        add(String(localized: "Return to Navigation"), to: view, action: #selector(returnToNavigation(_:)), key: "u", modifiers: [.command, .option], target: self)
         add(String(localized: "Next Unchecked Task"), to: view, action: #selector(nextUncheckedTask(_:)), key: "j", modifiers: [.command, .option], target: self)
         add(String(localized: "Previous Unchecked Task"), to: view, action: #selector(previousUncheckedTask(_:)), key: "j", modifiers: [.command, .option, .shift], target: self)
         add(String(localized: "Next Unreviewed Change"), to: view, action: #selector(nextChange(_:)), key: "]", modifiers: [.command, .option], target: self)

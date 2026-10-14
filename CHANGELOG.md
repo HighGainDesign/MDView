@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.0 — In development
+
+- Pause file updates and keep your place when content changes.
+- Jump between headings, unchecked tasks and unreviewed changes with the keyboard.
+- Hear review details and useful status announcements in the active reader.
+- Prepare interface localization and independent document language detection.
+
 ## 1.2.2 — 2026-10-14
 
 - Save checklists to Markdown with first-click permission, autosave and Undo/Redo.

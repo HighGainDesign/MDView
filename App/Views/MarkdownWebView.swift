@@ -159,7 +159,7 @@ struct MarkdownWebView: NSViewRepresentable {
             var focusID = -1
             if enabled, let pending = taskFocus {
                 if reader.focusIntentGeneration == pending.focusIntent,
-                   !(webView.window?.firstResponder is NSTextView),
+                   Self.hasDocumentFocus(webView),
                    reader.fileURL == pending.file,
                    reader.source == pending.source || reader.source == pending.updated,
                    let task = reader.rendered?.tasks.first(where: { $0.id == pending.task.id }),
@@ -171,14 +171,19 @@ struct MarkdownWebView: NSViewRepresentable {
             Task { [weak self] in
                 guard let self, contentReady, String(activeLoadGeneration) == token, taskConfiguration == configuration, reader.focusIntentGeneration == focusIntent else { return }
                 do {
-                    // DOM focus alone is insufficient after a native consent
-                    // sheet: restore WebKit's responder so Tab/Space reach it.
-                    // This does not activate the app or bring its window forward.
-                    if focusID >= 0 { webView.window?.makeFirstResponder(webView) }
+                    // Restore DOM focus only while WebKit still owns the native
+                    // responder. Ordinary Tab/click moves must win over this save.
                     _ = try await webView.callAsyncJavaScript("""
-                    if (!enabled && document.activeElement instanceof HTMLInputElement && document.activeElement.hasAttribute('data-mdview-task')) {
+                    if (!window.mdviewTaskFocusListener) {
+                        window.mdviewTaskFocusListener = true;
+                        document.addEventListener('focusin', event => {
+                            const pending = window.mdviewPendingTaskFocus;
+                            if (pending && event.target !== pending.node) pending.moved = true;
+                        });
+                    }
+                    if (!enabled && !window.mdviewPendingTaskFocus) {
                         const selection = getSelection();
-                        window.mdviewPendingTaskFocus = {node:document.activeElement, intent:focusIntent,
+                        window.mdviewPendingTaskFocus = {node:document.activeElement, intent:focusIntent, moved:false,
                             selection:selection?.rangeCount ? {anchor:selection.anchorNode, anchorOffset:selection.anchorOffset,
                                 focus:selection.focusNode, focusOffset:selection.focusOffset} : null};
                     }
@@ -189,9 +194,12 @@ struct MarkdownWebView: NSViewRepresentable {
                         input.title = canSave ? saveTitle : consentTitle;
                     }
                     if (enabled) {
-                        if (focusID >= 0) {
+                        const pendingFocus = window.mdviewPendingTaskFocus;
+                        const mayRestore = restoreFocus && !pendingFocus?.moved &&
+                            (document.activeElement === document.body || document.activeElement === pendingFocus?.node);
+                        if (focusID >= 0 && mayRestore) {
                             document.querySelector(`input[data-mdview-task="${focusID}"]`)?.focus({preventScroll: true});
-                        } else if (restoreFocus && window.mdviewPendingTaskFocus?.intent === focusIntent && window.mdviewPendingTaskFocus.node.isConnected) {
+                        } else if (mayRestore && window.mdviewPendingTaskFocus?.intent === focusIntent && window.mdviewPendingTaskFocus.node.isConnected) {
                             const pending = window.mdviewPendingTaskFocus;
                             pending.node.focus({preventScroll:true});
                             const selection = pending.selection;

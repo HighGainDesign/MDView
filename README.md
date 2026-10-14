@@ -141,6 +141,33 @@ File-backed documents refresh automatically, including atomic saves. MDView comp
 
 For very large documents, review falls back to comparison by section position and labels that limitation in the panel.
 
+## 1.3 candidate: reading and accessibility
+
+Version 1.3 is in development; the download link above remains the latest stable release.
+Saved-file updates preserve surviving reading blocks and can be paused from
+**Reading options → Pause Updates** or **View → Pause Updates**. A notice shows
+when a newer version is waiting. Resume applies the newest saved contents.
+Checkmarks cannot be saved against a pending version.
+
+Outline and **Show in Document** move focus to their destination. Review describes
+checkbox states, link destinations and image alternatives in **Before** and **After**.
+The active reader announces errors, missing search results and review progress;
+rapid updates are combined instead of reading the whole document aloud.
+
+| View command | Shortcut |
+| --- | --- |
+| Pause/Resume Updates | ⌥⌘P |
+| Focus Document | ⌥⌘D |
+| Return to Navigation | ⌥⌘U |
+| Next/Previous Unchecked Task | ⌥⌘J / ⇧⌥⌘J |
+| Next/Previous Unreviewed Change | ⌥⌘] / ⌥⌘[ |
+
+**Reading options → Document Language** overrides conservative on-device language
+detection for the current window. Unknown language is left unspecified. This is
+independent of interface language and does not translate text or add Read Aloud.
+Interface strings use String Catalogs; English is the only shipping translation.
+Accessibility testing does not yet establish broad VoiceOver support.
+
 ## Create a signed installer
 
 The release script builds universal Apple Silicon/Intel binaries, verifies app/extension signing and debugger entitlements, notarizes and staples the app, creates a DMG with an Applications symlink, and notarizes and staples the DMG. The Drafts action lives inside the app and can be installed from Settings.

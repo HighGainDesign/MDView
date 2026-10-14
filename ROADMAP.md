@@ -45,7 +45,7 @@ Find focus fixes and normal macOS access to local images without folder grants.
 The checklist workflow has passed human-assisted spoken VoiceOver checks; that
 does not establish whole-app VoiceOver support.
 
-## 1.3 — accessibility and reading reliability
+## 1.3 — accessibility and reading reliability (in development)
 
 Implement accessibility priorities 1–5 across the reader, rather than limiting
 the work to checklists.

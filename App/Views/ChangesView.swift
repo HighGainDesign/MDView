@@ -42,7 +42,7 @@ struct ChangesView: View {
                 VStack(spacing: 8) {
                     Button("Mark This Reviewed") { reviewActionIntent = reader.focusIntentGeneration; reader.markCurrentChangeReviewed() }
                         .buttonStyle(.borderedProminent)
-                        .focused($reviewFocused).accessibilityFocused($accessibleReviewFocused)
+                        .focusable().focused($reviewFocused).accessibilityFocused($accessibleReviewFocused)
                         .help("Clear this highlight and advance to the next change")
                     Button("Mark All Reviewed") { reviewActionIntent = reader.focusIntentGeneration; reader.markReviewed() }
                         .help("Acknowledge every remaining change in this document")
@@ -53,7 +53,7 @@ struct ChangesView: View {
                     .font(.title3).padding(.vertical, 6)
                 Text("New saved changes will appear here automatically. Reviewing changes never modifies the file.")
                     .foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-                HStack { Spacer(); Button("Done", action: dismiss).focused($reviewFocused).accessibilityFocused($accessibleReviewFocused) }
+                HStack { Spacer(); Button("Done", action: dismiss).focusable().focused($reviewFocused).accessibilityFocused($accessibleReviewFocused) }
             }
             if let refreshed = reader.lastRefreshed {
                 Text("Last refreshed \(refreshed.formatted(date: .omitted, time: .standard))")
@@ -94,13 +94,13 @@ struct ChangesView: View {
             }
             if !change.beforeAccessibleText.isEmpty {
                 Text("Before").font(.caption.weight(.medium)).foregroundStyle(.secondary)
-                Text(excerpt(change.beforeAccessibleText)).foregroundStyle(.secondary).textSelection(.enabled)
+                Text(change.beforeAccessibleText).foregroundStyle(.secondary).textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(10).background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
             }
             if !change.afterAccessibleText.isEmpty {
                 Text("After").font(.caption.weight(.medium)).foregroundStyle(.secondary)
-                Text(excerpt(change.afterAccessibleText)).textSelection(.enabled)
+                Text(change.afterAccessibleText).textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(10).background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
             }
@@ -111,7 +111,4 @@ struct ChangesView: View {
         }.frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func excerpt(_ text: String) -> String {
-        text.count > 1_200 ? String(text.prefix(1_200)) + "…" : text
-    }
 }

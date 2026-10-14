@@ -38,6 +38,7 @@ final class ChecklistWebViewTests: XCTestCase {
         defer { window.close(); reader.stop(); try? FileManager.default.removeItem(at: file) }
         try await waitForDisabled(false, in: controller.view)
         let webView = try XCTUnwrap(findWebView(controller.view))
+        window.makeFirstResponder(webView)
         // Exercise the real isolated-world message handler and reload path.
         // Production change listeners additionally require a trusted user event.
         let request = "window.webkit.messageHandlers.taskToggle.postMessage({id: 1, checked: true, token: window.mdviewTaskState.token});"

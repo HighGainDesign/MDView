@@ -134,7 +134,8 @@ final class ReaderUpdatesTests: XCTestCase {
     }
 
     func testLateSaveCompletionCannotReplaceNewerAgentTextOrRestoreStaleUndo() async throws {
-        for pauseThenResume in [false,true] {
+        for scenario in 0..<4 {
+            let pauseThenResume = scenario % 2 == 1
             let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".md")
             defer { try? FileManager.default.removeItem(at:file) }
             let gate = SaveResultGate()
@@ -152,7 +153,7 @@ final class ReaderUpdatesTests: XCTestCase {
             for _ in 0..<200 where !gate.waiting { try await Task.sleep(for:.milliseconds(10)) }
             XCTAssertTrue(gate.waiting)
             XCTAssertEqual(try MarkdownSource.read(file),"- [x] Original\n")
-            let agent = "- [ ] New task from agent\n"
+            let agent = scenario < 2 ? "- [ ] New task from agent\n" : "- [ ] Original\n"
             try agent.write(to:file,atomically:true,encoding:.utf8)
             reader.receiveFileUpdate(agent)
             if pauseThenResume { reader.setFileUpdatesPaused(false) }

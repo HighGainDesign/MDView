@@ -77,7 +77,7 @@ struct ReaderToolbar: View {
                 .accessibilityLabel("Review changes")
                 .accessibilityValue("\(reader.changes.count) unreviewed changes, panel \(reader.showChanges ? String(localized: "shown") : String(localized: "hidden"))")
                 .tint(reader.showChanges ? .accentColor : .secondary)
-                .focused($reviewFocused)
+                .focusable().focused($reviewFocused)
                 .fixedSize()
                 toolSeparator
             }

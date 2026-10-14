@@ -21,6 +21,7 @@ final class ReaderState {
     var fileURL: URL? {
         didSet {
             guard fileURL != oldValue else { return }
+            externalFileRevision += 1
             cancelChecklistConfirmation()
             checklistMode = false
             checklistSaving = false; pendingChecklistSource = nil
@@ -82,6 +83,7 @@ final class ReaderState {
         didSet { report(checklistError, oldValue: oldValue, topic: .saveFailure) }
     }
     private var pendingChecklistSource: String?
+    private var externalFileRevision = 0
     private var checklistUndo: [ChecklistOperation] = []
     private var checklistRedo: [ChecklistOperation] = []
 
@@ -206,6 +208,9 @@ final class ReaderState {
     /// Invalidate write history immediately even though the displayed page stays put.
     func receiveFileUpdate(_ text: String) {
         guard fileURL != nil, !isStreamingPreview else { return }
+        // Even a return to identical text is a new external version. Only the
+        // in-flight marker result may be observed without superseding its save.
+        if text != pendingChecklistSource { externalFileRevision += 1 }
         if text != source && text != pendingChecklistSource {
             checklistUndo.removeAll(); checklistRedo.removeAll()
         }
@@ -308,6 +313,7 @@ final class ReaderState {
     private func performChecklistChange(task: MarkdownTask, marker: UInt8, history: ChecklistHistory, allowRendering: Bool = false) {
         guard !hasPendingFileUpdate, checklistMode, !checklistSaving, (!isRendering || allowRendering), !isStreamingPreview, let fileURL else { return }
         let expected = source
+        let revision = externalFileRevision
         do {
             pendingChecklistSource = try MarkdownSource.decode(MarkdownTasks.patch(Data(expected.utf8), expectedSource: expected, task: task, marker: marker))
         } catch { checklistError = error.localizedDescription; return }
@@ -320,7 +326,7 @@ final class ReaderState {
                 guard let self, self.fileURL == fileURL else { return }
                 // A newer file reception may have completed while the committed
                 // write's result was travelling back to the UI actor.
-                guard source == expected || source == updated else {
+                guard externalFileRevision == revision, source == expected || source == updated else {
                     checklistSaving = false; pendingChecklistSource = nil
                     checklistUndo.removeAll(); checklistRedo.removeAll()
                     checklistError = ChecklistError.changed.localizedDescription

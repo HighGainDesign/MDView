@@ -64,7 +64,8 @@ if (operation === 'navigate') {
         const tasks = Array.from(main?.querySelectorAll('input[type="checkbox"]') ?? []).filter(node => !node.defaultChecked);
         if (!tasks.length) return false;
         const active = document.activeElement;
-        let index = tasks.findIndex(node => node === active || node === window.mdviewLastTask || node.closest('li') === active);
+        let index = tasks.findIndex(node => node === active || node.closest('li') === active);
+        if (index < 0) index = tasks.indexOf(window.mdviewLastTask);
         if (index >= 0) index = (index + (backwards ? -1 : 1) + tasks.length) % tasks.length;
         else {
             const next = tasks.findIndex(node => node.getBoundingClientRect().top >= 0);
