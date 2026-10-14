@@ -244,8 +244,13 @@ struct MarkdownWebView: NSViewRepresentable {
                 case .uncheckedTask(let backwards): arguments["kind"] = "unchecked"; arguments["backwards"] = backwards
                 case .readingPosition: arguments["kind"] = "reading"
                 }
-                _ = try? await webView.callAsyncJavaScript(Self.documentScript,
-                    arguments: arguments, in: nil, contentWorld: Self.taskWorld)
+                let found = try? await webView.callAsyncJavaScript(Self.documentScript,
+                    arguments: arguments, in: nil, contentWorld: Self.taskWorld) as? Bool
+                if found == false, reader.navigationRequest == request {
+                    if case .uncheckedTask = request.destination {
+                        reader.announcements.schedule(String(localized: "No unchecked tasks."), topic: .navigation)
+                    }
+                }
             }
         }
 

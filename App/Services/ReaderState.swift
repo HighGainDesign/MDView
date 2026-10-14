@@ -3,6 +3,13 @@ import Observation
 
 @MainActor @Observable
 final class ReaderState {
+    let announcements: ReaderAnnouncements
+    private var pendingChangesAnnouncement = false
+    private var pendingReviewAnnouncement = false
+
+    init(announcements: ReaderAnnouncements = ReaderAnnouncements()) {
+        self.announcements = announcements
+    }
     var source = ""
     var title = "Markdown"
     var fileURL: URL? {
@@ -17,7 +24,9 @@ final class ReaderState {
         }
     }
     var rendered: RenderedMarkdown?
-    var errorMessage: String?
+    var errorMessage: String? {
+        didSet { report(errorMessage, oldValue: oldValue, topic: .refreshFailure) }
+    }
     var showOutline = false { didSet { if showOutline != oldValue { focusIntentGeneration += 1 } } }
     private var findVisible = false
     private(set) var findFocusGeneration = 0
@@ -31,10 +40,16 @@ final class ReaderState {
         }
     }
     var showChanges = false { didSet { if showChanges != oldValue { focusIntentGeneration += 1 } } }
-    var searchText = ""
+    var searchText = "" { didSet { if searchText != oldValue { announcements.cancel(topic: .search) } } }
     var searchBackwards = false
     var searchGeneration = 0
-    var searchFound = true
+    var searchFound = true {
+        didSet {
+            if !searchFound && !searchText.isEmpty {
+                announcements.schedule(String(localized: "No matches for “\(searchText)”"), topic: .search)
+            } else { announcements.cancel(topic: .search) }
+        }
+    }
     var selectedHeading: String?
     private(set) var navigationRequest: ReaderNavigation?
     private(set) var navigationReturnTarget: ReaderNavigation.ReturnTarget?
@@ -49,12 +64,16 @@ final class ReaderState {
     var streamPaused = false
     var streamIsReceiving = false
     var streamSourceName: String?
-    var streamError: String?
+    var streamError: String? {
+        didSet { report(streamError, oldValue: oldValue, topic: .streamFailure) }
+    }
     var checklistMode = false { didSet { checklistError = nil } }
     var showChecklistConfirmation = false
     private(set) var pendingChecklistConfirmation: ChecklistConfirmation?
     private(set) var checklistSaving = false
-    var checklistError: String?
+    var checklistError: String? {
+        didSet { report(checklistError, oldValue: oldValue, topic: .saveFailure) }
+    }
     private var pendingChecklistSource: String?
     private var checklistUndo: [ChecklistOperation] = []
     private var checklistRedo: [ChecklistOperation] = []
@@ -65,7 +84,9 @@ final class ReaderState {
     var wide = UserDefaults.standard.object(forKey: "wideLayout") as? Bool ?? true
     var documentAppearance = DocumentAppearance.system
     var loadRemoteImages = false
-    var localImageError: String?
+    var localImageError: String? {
+        didSet { report(localImageError, oldValue: oldValue, topic: .imageFailure) }
+    }
     var imageReloadGeneration = 0
     private var renderTask: Task<Void, Never>?
     private var readTask: Task<Void, Never>?
@@ -78,6 +99,21 @@ final class ReaderState {
     var selectedChange: DocumentChange? {
         guard !changes.entries.isEmpty else { return nil }
         return changes.entries[min(max(0, currentChangeIndex), changes.count - 1)]
+    }
+
+    private func report(_ message: String?, oldValue: String?, topic: ReaderAnnouncements.Topic) {
+        guard message != oldValue else { return }
+        if let message { announcements.schedule(message, topic: topic) }
+        else { announcements.cancel(topic: topic) }
+    }
+
+    private func announceReview() {
+        if let change = selectedChange {
+            let index = max(0, currentChangeIndex) + 1
+            announcements.schedule(String(localized: "Change \(index) of \(changes.count). \(change.kind.rawValue). \(changes.count) remaining."), topic: .review)
+        } else {
+            announcements.schedule(String(localized: "All changes reviewed."), topic: .review)
+        }
     }
 
     func navigate(to id: String, focus: Bool = true, returnTo: ReaderNavigation.ReturnTarget? = nil) {
@@ -122,9 +158,11 @@ final class ReaderState {
             navigationReturnTarget = .review
             returnToNavigation()
         }
+        announceReview()
     }
 
     func markReviewed() {
+        pendingReviewAnnouncement = true
         reviewedSource = source
         reviewedUnits = nil
         advanceAfterReview = false
@@ -147,6 +185,7 @@ final class ReaderState {
             guard baseline.indices.contains(offset) else { return }
             baseline.remove(at: offset)
         }
+        pendingReviewAnnouncement = true
         reviewedUnits = baseline
         currentChangeIndex = max(0, currentChangeIndex)
         advanceAfterReview = true
@@ -161,7 +200,13 @@ final class ReaderState {
             checklistUndo.removeAll(); checklistRedo.removeAll()
         }
         if fileUpdatesPaused {
+            let hadPending = hasPendingFileUpdate
             pendingFileSource = text == source ? nil : text
+            if hasPendingFileUpdate {
+                announcements.schedule(String(localized: "A newer saved version is waiting. Resume updates to read it."), topic: .updates)
+            } else if hadPending {
+                announcements.schedule(String(localized: "The saved file matches the displayed version."), topic: .updates)
+            }
             errorMessage = nil
         } else {
             acceptFileUpdate(text)
@@ -170,7 +215,9 @@ final class ReaderState {
 
     func setFileUpdatesPaused(_ paused: Bool) {
         guard fileURL != nil, !isStreamingPreview else { return }
+        guard fileUpdatesPaused != paused else { return }
         fileUpdatesPaused = paused
+        announcements.schedule(paused ? String(localized: "File updates paused.") : String(localized: "File updates resumed."), topic: .updates)
         if !paused, let latest = pendingFileSource {
             pendingFileSource = nil
             acceptFileUpdate(latest)
@@ -186,6 +233,7 @@ final class ReaderState {
         if reviewedSource == nil { reviewedSource = source }
         lastRefreshed = Date()
         guard text != source else { errorMessage = nil; return }
+        if text != pendingChecklistSource { pendingChangesAnnouncement = true }
         source = text
         currentChangeIndex = -1
         render()
@@ -299,6 +347,14 @@ final class ReaderState {
                 self?.isRendering = false
                 if let self {
                     currentChangeIndex = output.changes.count == 0 ? -1 : min(max(0, currentChangeIndex), output.changes.count - 1)
+                    if pendingReviewAnnouncement {
+                        pendingReviewAnnouncement = false
+                        pendingChangesAnnouncement = false
+                        announceReview()
+                    } else if pendingChangesAnnouncement {
+                        pendingChangesAnnouncement = false
+                        announcements.schedule(String(localized: "\(output.changes.count) unreviewed changes available."), topic: .changes)
+                    }
                     if advanceAfterReview {
                         advanceAfterReview = false
                         if let target = selectedChange?.targetID { navigate(to: target, focus: false) }
@@ -397,6 +453,7 @@ final class ReaderState {
         isStreamingPreview = false
         renderTask?.cancel()
         readTask?.cancel()
+        announcements.cancel()
     }
 }
 

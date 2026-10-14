@@ -93,6 +93,7 @@ struct ReaderView: View {
         } message: { pending in
             Text("Checkmarks in “\(pending.fileURL.lastPathComponent)” save automatically. Other text stays unchanged, and you can undo each change.")
         }
+        .background(ReaderWindowContext(reader: reader).frame(width: 0, height: 0).accessibilityHidden(true))
         .frame(minWidth: 480, minHeight: 300)
         .preferredColorScheme(documentAppearance == .system ? nil : (documentAppearance == .dark ? .dark : .light))
         .task { reader.documentAppearance = documentAppearance; await reader.watchFile() }
@@ -105,7 +106,7 @@ struct ReaderView: View {
             await Task.yield()
             guard !Task.isCancelled, intent == reader.focusIntentGeneration else { return }
             focusedOutlineHeading = id
-            accessibleOutlineHeading = id
+            if reader.announcements.isEligible() { accessibleOutlineHeading = id }
         }
         .onChange(of: reader.showChanges) {
             if reader.showChanges, let target = reader.selectedChange?.targetID { reader.navigate(to: target, focus: false) }

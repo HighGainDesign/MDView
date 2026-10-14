@@ -5,6 +5,7 @@ struct ChangesView: View {
     let dismiss: () -> Void
     @FocusState private var reviewFocused: Bool
     @AccessibilityFocusState private var accessibleReviewFocused: Bool
+    @State private var reviewActionIntent: Int?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -39,11 +40,11 @@ struct ChangesView: View {
                 }.frame(maxHeight: .infinity)
                 Divider()
                 VStack(spacing: 8) {
-                    Button("Mark This Reviewed") { reader.markCurrentChangeReviewed() }
+                    Button("Mark This Reviewed") { reviewActionIntent = reader.focusIntentGeneration; reader.markCurrentChangeReviewed() }
                         .buttonStyle(.borderedProminent)
                         .focused($reviewFocused).accessibilityFocused($accessibleReviewFocused)
                         .help("Clear this highlight and advance to the next change")
-                    Button("Mark All Reviewed") { reader.markReviewed() }
+                    Button("Mark All Reviewed") { reviewActionIntent = reader.focusIntentGeneration; reader.markReviewed() }
                         .help("Acknowledge every remaining change in this document")
                 }.disabled(reader.isRendering)
                     .frame(maxWidth: .infinity)
@@ -63,13 +64,20 @@ struct ChangesView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("review-panel")
+        .onChange(of: reader.isRendering) {
+            guard !reader.isRendering, let intent = reviewActionIntent else { return }
+            reviewActionIntent = nil
+            guard intent == reader.focusIntentGeneration else { return }
+            reviewFocused = true
+            if reader.announcements.isEligible() { accessibleReviewFocused = true }
+        }
         .task(id: reader.returnFocusGeneration) {
             guard reader.returnFocusGeneration > 0, reader.navigationReturnTarget == .review else { return }
             let intent = reader.focusIntentGeneration
             await Task.yield()
             guard !Task.isCancelled, intent == reader.focusIntentGeneration else { return }
             reviewFocused = true
-            accessibleReviewFocused = true
+            if reader.announcements.isEligible() { accessibleReviewFocused = true }
         }
     }
 
