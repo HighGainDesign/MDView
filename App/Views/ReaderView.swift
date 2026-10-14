@@ -22,10 +22,20 @@ struct ReaderView: View {
                 }.font(.callout).padding(12).background(.quaternary)
                 Divider()
             }
+            if reader.fileUpdatesPaused {
+                HStack(spacing: 10) {
+                    Image(systemName: "pause.circle")
+                    Text(reader.hasPendingFileUpdate ? "Updates paused. A newer version is waiting." : "File updates paused.")
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer()
+                    Button("Resume Updates") { reader.setFileUpdatesPaused(false) }
+                }.font(.callout).padding(12).background(.quaternary)
+                Divider()
+            }
             if reader.checklistMode {
                 HStack(spacing: 10) {
                     Image(systemName: "checklist")
-                    Text(reader.checklistError ?? (reader.rendered?.tasks.isEmpty == true ? "This checklist cannot be mapped safely. Checkboxes remain disabled." : "Checkmarks save to this file."))
+                    Text(reader.checklistError ?? (reader.hasPendingFileUpdate ? "Resume updates before saving more checkmarks." : (reader.rendered?.tasks.isEmpty == true ? "This checklist cannot be mapped safely. Checkboxes remain disabled." : "Checkmarks save to this file.")))
                         .fixedSize(horizontal: false, vertical: true)
                     Spacer()
                     Button("Undo") { reader.undoChecklist() }.disabled(!reader.canUndoChecklist)

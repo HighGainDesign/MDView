@@ -62,14 +62,19 @@ struct MarkdownWebView: NSViewRepresentable {
         var imageReloadGeneration = -1
         var navigationGeneration = -1
         var searchGeneration = -1
-        private var scrollY = 0.0
+        private var readingPosition: [String: Any]?
+        private static let documentScript: String = {
+            guard let url = Bundle.main.url(forResource: "reader-document", withExtension: "js"),
+                  let script = try? String(contentsOf: url, encoding: .utf8) else { return "return false;" }
+            return script
+        }()
         private var loadGeneration = 0
         private var activeLoadGeneration = 0
         private var activeNavigation: WKNavigation?
         private var contentReady = false
         private var pendingTarget: String?
         private var taskConfiguration: String?
-        private var taskFocus: (file: URL, source: String, updated: String, task: MarkdownTask)?
+        private var taskFocus: (file: URL, source: String, updated: String, task: MarkdownTask, focusIntent: Int)?
 
         init(reader: ReaderState) {
             self.reader = reader
@@ -87,44 +92,12 @@ struct MarkdownWebView: NSViewRepresentable {
                 guard let self else { return }
                 guard generation == loadGeneration else { return }
                 if canUpdateContent {
-                    // A content refresh stays in the existing page. DOM replacement
-                    // and instant scroll restoration happen before its next paint,
-                    // avoiding the top-of-page frame produced by a new navigation.
-                    let updated = try? await webView.callAsyncJavaScript("""
-                    const next = new DOMParser().parseFromString(html, 'text/html');
-                    const main = document.getElementById('document');
-                    const nextMain = next.getElementById('document');
-                    if (!main || !nextMain || next.head.innerHTML !== document.head.innerHTML) return false;
-                    const x = window.scrollX, y = window.scrollY;
-                    function sameShape(a, b) {
-                        if (a.nodeType !== b.nodeType || a.nodeName !== b.nodeName) return false;
-                        if ((a.nodeType === Node.TEXT_NODE || a.nodeType === Node.COMMENT_NODE) && a.data !== b.data) return false;
-                        const oldChildren = Array.from(a.childNodes), newChildren = Array.from(b.childNodes);
-                        return oldChildren.length === newChildren.length && oldChildren.every((child, i) => sameShape(child, newChildren[i]));
-                    }
-                    function syncAttributes(a, b) {
-                        if (a.nodeType === Node.ELEMENT_NODE) {
-                            for (const attribute of Array.from(a.attributes)) {
-                                if (!b.hasAttribute(attribute.name)) a.removeAttribute(attribute.name);
-                            }
-                            for (const attribute of Array.from(b.attributes)) {
-                                if (a.getAttribute(attribute.name) !== attribute.value) a.setAttribute(attribute.name, attribute.value);
-                            }
-                        }
-                        const newChildren = Array.from(b.childNodes);
-                        Array.from(a.childNodes).forEach((child, i) => syncAttributes(child, newChildren[i]));
-                    }
-                    // Checkbox-only changes retain existing inputs, text and
-                    // loaded images; do not reload an image above the viewport.
-                    if (sameShape(main, nextMain)) syncAttributes(main, nextMain);
-                    else main.replaceChildren(...Array.from(nextMain.childNodes));
-                    document.body.className = next.body.className;
-                    const previousScrollBehavior = document.documentElement.style.scrollBehavior;
-                    document.documentElement.style.scrollBehavior = 'auto';
-                    window.scrollTo(x, y);
-                    document.documentElement.style.scrollBehavior = previousScrollBehavior;
-                    return true;
-                    """, arguments: ["html": html], in: nil, contentWorld: Self.taskWorld) as? Bool
+                    // Reconcile sanitized nodes and preserve the visible reading
+                    // anchor in the same page, before the next paint.
+                    let updated = try? await webView.callAsyncJavaScript(Self.documentScript,
+                        arguments: ["operation": "update", "html": html,
+                                    "restoreFocus": Self.hasDocumentFocus(webView)],
+                        in: nil, contentWorld: Self.taskWorld) as? Bool
                     guard generation == loadGeneration else { return }
                     if updated == true {
                         activeLoadGeneration = generation
@@ -138,8 +111,10 @@ struct MarkdownWebView: NSViewRepresentable {
                 }
                 // JavaScript requested before the first navigation can wait for
                 // a document to exist. Load the first page without that wait.
-                if webView.url != nil,
-                   let y = try? await webView.evaluateJavaScript("window.scrollY") as? Double { scrollY = y }
+                if webView.url != nil {
+                    readingPosition = try? await webView.callAsyncJavaScript(Self.documentScript,
+                        arguments: ["operation": "capture"], in: nil, contentWorld: Self.taskWorld) as? [String: Any]
+                }
                 guard generation == loadGeneration else { return }
                 activeLoadGeneration = generation
                 activeNavigation = webView.loadHTMLString(html, baseURL: reader.fileURL?.deletingLastPathComponent())
@@ -149,16 +124,14 @@ struct MarkdownWebView: NSViewRepresentable {
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             guard navigation === activeNavigation, activeLoadGeneration == loadGeneration else { return }
             contentReady = true
-            let y = scrollY
+            let position = readingPosition
             let target = pendingTarget
             pendingTarget = nil
             Task {
-                _ = try? await webView.callAsyncJavaScript("""
-                    const previous = document.documentElement.style.scrollBehavior;
-                    document.documentElement.style.scrollBehavior = 'auto';
-                    window.scrollTo(0, y);
-                    document.documentElement.style.scrollBehavior = previous;
-                    """, arguments: ["y": y], in: nil, contentWorld: .page)
+                if let position {
+                    _ = try? await webView.callAsyncJavaScript(Self.documentScript,
+                        arguments: ["operation": "restore", "position": position], in: nil, contentWorld: Self.taskWorld)
+                }
                 if let target { navigate(to: target) }
             }
             configureTasks()
@@ -167,15 +140,18 @@ struct MarkdownWebView: NSViewRepresentable {
 
         func configureTasks() {
             guard contentReady, let webView else { return }
-            let enabled = reader.fileURL != nil && !reader.isStreamingPreview && !reader.checklistSaving && !reader.isRendering && !reader.showChecklistConfirmation && html == reader.rendered?.html
+            let enabled = reader.fileURL != nil && !reader.isStreamingPreview && !reader.hasPendingFileUpdate && !reader.checklistSaving && !reader.isRendering && !reader.showChecklistConfirmation && html == reader.rendered?.html
             let canSave = reader.checklistMode
             let token = String(activeLoadGeneration)
-            let configuration = "\(token):\(enabled):\(canSave):\(reader.checklistSaving):\(reader.isRendering):\(reader.showChecklistConfirmation)"
+            let focusIntent = reader.focusIntentGeneration
+            let configuration = "\(focusIntent):\(token):\(enabled):\(canSave):\(reader.checklistSaving):\(reader.isRendering):\(reader.showChecklistConfirmation)"
             guard taskConfiguration != configuration else { return }
             taskConfiguration = configuration
             var focusID = -1
             if enabled, let pending = taskFocus {
-                if reader.fileURL == pending.file,
+                if reader.focusIntentGeneration == pending.focusIntent,
+                   !(webView.window?.firstResponder is NSTextView),
+                   reader.fileURL == pending.file,
                    reader.source == pending.source || reader.source == pending.updated,
                    let task = reader.rendered?.tasks.first(where: { $0.id == pending.task.id }),
                    task.utf8Offset == pending.task.utf8Offset, task.label == pending.task.label {
@@ -184,21 +160,39 @@ struct MarkdownWebView: NSViewRepresentable {
                 taskFocus = nil
             }
             Task { [weak self] in
-                guard let self, contentReady, String(activeLoadGeneration) == token, taskConfiguration == configuration else { return }
+                guard let self, contentReady, String(activeLoadGeneration) == token, taskConfiguration == configuration, reader.focusIntentGeneration == focusIntent else { return }
                 do {
                     // DOM focus alone is insufficient after a native consent
                     // sheet: restore WebKit's responder so Tab/Space reach it.
                     // This does not activate the app or bring its window forward.
                     if focusID >= 0 { webView.window?.makeFirstResponder(webView) }
                     _ = try await webView.callAsyncJavaScript("""
+                    if (!enabled && document.activeElement instanceof HTMLInputElement && document.activeElement.hasAttribute('data-mdview-task')) {
+                        const selection = getSelection();
+                        window.mdviewPendingTaskFocus = {node:document.activeElement, intent:focusIntent,
+                            selection:selection?.rangeCount ? {anchor:selection.anchorNode, anchorOffset:selection.anchorOffset,
+                                focus:selection.focusNode, focusOffset:selection.focusOffset} : null};
+                    }
                     window.mdviewTaskState = { enabled, canSave, token };
                     for (const input of document.querySelectorAll('input[data-mdview-task]')) {
                         input.disabled = !enabled;
                         if (!saving && !rendering) input.checked = input.defaultChecked;
                         input.title = canSave ? 'Save this checkbox change to the Markdown file' : 'Click to save checkmarks in this file';
                     }
-                    if (enabled && focusID >= 0) {
-                        document.querySelector(`input[data-mdview-task="${focusID}"]`)?.focus({preventScroll: true});
+                    if (enabled) {
+                        if (focusID >= 0) {
+                            document.querySelector(`input[data-mdview-task="${focusID}"]`)?.focus({preventScroll: true});
+                        } else if (restoreFocus && window.mdviewPendingTaskFocus?.intent === focusIntent && window.mdviewPendingTaskFocus.node.isConnected) {
+                            const pending = window.mdviewPendingTaskFocus;
+                            pending.node.focus({preventScroll:true});
+                            const selection = pending.selection;
+                            if (selection?.anchor?.isConnected && selection?.focus?.isConnected) {
+                                const limit = node => node.nodeType === Node.TEXT_NODE ? node.length : node.childNodes.length;
+                                getSelection().setBaseAndExtent(selection.anchor, Math.min(selection.anchorOffset,limit(selection.anchor)),
+                                    selection.focus, Math.min(selection.focusOffset,limit(selection.focus)));
+                            }
+                        }
+                        window.mdviewPendingTaskFocus = null;
                     }
                     if (!window.mdviewTaskListener) {
                         window.mdviewTaskListener = true;
@@ -212,7 +206,7 @@ struct MarkdownWebView: NSViewRepresentable {
                             window.webkit.messageHandlers.taskToggle.postMessage({id: Number(input.dataset.mdviewTask), checked, token: state.token});
                         });
                     }
-                    """, arguments: ["enabled": enabled, "canSave": canSave, "token": token, "saving": reader.checklistSaving, "rendering": reader.isRendering, "focusID": focusID], in: nil, contentWorld: Self.taskWorld)
+                    """, arguments: ["enabled": enabled, "canSave": canSave, "token": token, "saving": reader.checklistSaving, "rendering": reader.isRendering, "focusID": focusID, "focusIntent": focusIntent, "restoreFocus": Self.hasDocumentFocus(webView)], in: nil, contentWorld: Self.taskWorld)
                 } catch {
                     if reader.checklistMode { reader.checklistError = "Could not activate checklist controls: \(error.localizedDescription)" }
                 }
@@ -228,8 +222,13 @@ struct MarkdownWebView: NSViewRepresentable {
                   let patched = try? MarkdownTasks.patch(Data(reader.source.utf8), expectedSource: reader.source, task: task, checked: checked) else { return }
             let source = reader.source
             if reader.requestTaskChecked(id, checked: checked) {
-                taskFocus = (file, source, String(decoding: patched, as: UTF8.self), task)
+                taskFocus = (file, source, String(decoding: patched, as: UTF8.self), task, reader.focusIntentGeneration)
             }
+        }
+
+        private static func hasDocumentFocus(_ webView: WKWebView) -> Bool {
+            guard let responder = webView.window?.firstResponder else { return false }
+            return responder === webView || (responder as? NSView)?.isDescendant(of: webView) == true
         }
 
         func navigate(to id: String) {

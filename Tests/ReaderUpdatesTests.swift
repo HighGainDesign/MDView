@@ -1,0 +1,143 @@
+import XCTest
+@testable import MDView
+
+@MainActor
+final class ReaderUpdatesTests: XCTestCase {
+    func testPauseKeepsDisplayedDocumentAndReviewBaselineUntilLatestResume() async throws {
+        let reader = ReaderState()
+        reader.fileURL = URL(fileURLWithPath: "/tmp/update-state.md")
+        reader.source = "# Notes\n\nOriginal.\n"
+        reader.render(); try await settle(reader)
+        reader.setFileUpdatesPaused(true)
+        reader.receiveFileUpdate("# Notes\n\nIntermediate.\n")
+        reader.receiveFileUpdate("# Notes\n\nLatest.\n")
+        XCTAssertEqual(reader.source, "# Notes\n\nOriginal.\n")
+        XCTAssertEqual(reader.changes.count, 0)
+        XCTAssertTrue(reader.hasPendingFileUpdate)
+        reader.setFileUpdatesPaused(false); try await settle(reader)
+        XCTAssertEqual(reader.source, "# Notes\n\nLatest.\n")
+        XCTAssertEqual(reader.changes.count, 1)
+        XCTAssertEqual(reader.selectedChange?.before, "Original.")
+        XCTAssertEqual(reader.selectedChange?.after, "Latest.")
+        XCTAssertFalse(reader.hasPendingFileUpdate)
+        reader.stop()
+    }
+
+    func testRevertingWhilePausedClearsPendingWithoutChangingDisplay() async throws {
+        let reader = ReaderState(); reader.fileURL = URL(fileURLWithPath: "/tmp/revert-state.md")
+        reader.source = "Original\n"; reader.render(); try await settle(reader)
+        reader.setFileUpdatesPaused(true)
+        reader.receiveFileUpdate("New\n")
+        XCTAssertTrue(reader.hasPendingFileUpdate)
+        reader.receiveFileUpdate("Original\n")
+        XCTAssertFalse(reader.hasPendingFileUpdate)
+        reader.setFileUpdatesPaused(false); try await settle(reader)
+        XCTAssertEqual(reader.source, "Original\n")
+        XCTAssertEqual(reader.changes.count, 0)
+        reader.stop()
+    }
+
+    func testPendingExternalUpdateInvalidatesUndoAndCannotSaveStaleCheckbox() async throws {
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".md")
+        defer { try? FileManager.default.removeItem(at: file) }
+        try "- [ ] First\n".write(to: file, atomically: true, encoding: .utf8)
+        let reader = ReaderState(); reader.fileURL = file; reader.source = "- [ ] First\n"
+        reader.render(); try await settle(reader); reader.checklistMode = true
+        reader.setTaskChecked(0, checked: true); try await settle(reader)
+        XCTAssertTrue(reader.canUndoChecklist)
+        reader.setFileUpdatesPaused(true)
+        let updated = "- [ ] Agent renamed task\n"
+        try updated.write(to: file, atomically: true, encoding: .utf8)
+        reader.receiveFileUpdate(updated)
+        XCTAssertFalse(reader.canUndoChecklist)
+        XCTAssertTrue(reader.hasPendingFileUpdate)
+        XCTAssertFalse(reader.requestTaskChecked(0, checked: false))
+        reader.setTaskChecked(0, checked: false); try await settle(reader)
+        XCTAssertEqual(try MarkdownSource.read(file), updated)
+        XCTAssertEqual(reader.source, "- [x] First\n")
+        reader.setFileUpdatesPaused(false); try await settle(reader)
+        XCTAssertEqual(reader.source, updated)
+        reader.stop()
+    }
+
+    func testOwnChecklistSaveAppliesWhilePausedWithoutUnpausing() async throws {
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".md")
+        defer { try? FileManager.default.removeItem(at: file) }
+        try "- [ ] First\n".write(to: file, atomically: true, encoding: .utf8)
+        let reader = ReaderState(); reader.fileURL = file; reader.source = "- [ ] First\n"
+        reader.render(); try await settle(reader); reader.checklistMode = true
+        reader.setFileUpdatesPaused(true)
+        reader.setTaskChecked(0, checked: true); try await settle(reader)
+        XCTAssertEqual(reader.source, "- [x] First\n")
+        XCTAssertTrue(reader.fileUpdatesPaused)
+        reader.receiveFileUpdate(reader.source)
+        XCTAssertFalse(reader.hasPendingFileUpdate)
+        reader.stop()
+    }
+
+    func testPauseIsFileOnlyAndFileSwitchDropsOldPendingText() {
+        let reader = ReaderState(); reader.source = "Snapshot"
+        reader.setFileUpdatesPaused(true)
+        XCTAssertFalse(reader.fileUpdatesPaused)
+        reader.receiveFileUpdate("Unrelated")
+        XCTAssertEqual(reader.source, "Snapshot")
+        reader.fileURL = URL(fileURLWithPath: "/tmp/first.md")
+        reader.setFileUpdatesPaused(true); reader.receiveFileUpdate("Old pending")
+        reader.fileURL = URL(fileURLWithPath: "/tmp/second.md")
+        XCTAssertFalse(reader.fileUpdatesPaused)
+        XCTAssertFalse(reader.hasPendingFileUpdate)
+        reader.isStreamingPreview = true
+        reader.setFileUpdatesPaused(true)
+        XCTAssertFalse(reader.fileUpdatesPaused)
+        reader.stop()
+    }
+
+    func testExternalUpdateDuringConsentWhilePausedReportsConflictWithoutWriting() async throws {
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".md")
+        defer { try? FileManager.default.removeItem(at: file) }
+        let reader = ReaderState(); reader.fileURL = file; reader.source = "- [ ] Original\n"
+        try reader.source.write(to: file, atomically: true, encoding: .utf8)
+        reader.render(); try await settle(reader)
+        reader.requestTaskChecked(0, checked: true)
+        reader.setFileUpdatesPaused(true)
+        try "- [ ] Renamed\n".write(to: file, atomically: true, encoding: .utf8)
+        reader.receiveFileUpdate("- [ ] Renamed\n")
+        reader.confirmChecklistSaving(); try await settle(reader)
+        XCTAssertNotNil(reader.checklistError)
+        XCTAssertEqual(reader.source, "- [ ] Original\n")
+        XCTAssertEqual(try MarkdownSource.read(file), "- [ ] Renamed\n")
+        reader.stop()
+    }
+
+    func testWatcherAndReloadRespectPauseAcrossAtomicReplacement() async throws {
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".md")
+        defer { try? FileManager.default.removeItem(at: file) }
+        let reader = ReaderState(); reader.fileURL = file; reader.source = "Original\n"
+        try reader.source.write(to: file, atomically: true, encoding: .utf8)
+        let watcher = Task { await reader.watchFile() }
+        defer { watcher.cancel(); reader.stop() }
+        for _ in 0..<100 where reader.rendered == nil { try await Task.sleep(for: .milliseconds(20)) }
+        reader.setFileUpdatesPaused(true)
+        try "Agent replacement\n".write(to: file, atomically: true, encoding: .utf8)
+        for _ in 0..<150 where !reader.hasPendingFileUpdate { try await Task.sleep(for: .milliseconds(20)) }
+        XCTAssertTrue(reader.hasPendingFileUpdate)
+        XCTAssertEqual(reader.source, "Original\n")
+        try "Latest replacement\n".write(to: file, atomically: true, encoding: .utf8)
+        reader.reload()
+        try await Task.sleep(for: .milliseconds(200))
+        XCTAssertEqual(reader.source, "Original\n")
+        reader.setFileUpdatesPaused(false)
+        for _ in 0..<150 where reader.source != "Latest replacement\n" { try await Task.sleep(for: .milliseconds(20)) }
+        XCTAssertEqual(reader.source, "Latest replacement\n")
+        XCTAssertFalse(reader.hasPendingFileUpdate)
+        XCTAssertNil(reader.errorMessage)
+    }
+
+    private func settle(_ reader: ReaderState) async throws {
+        for _ in 0..<300 {
+            if !reader.isRendering && !reader.checklistSaving { return }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        XCTFail("Reader operation did not settle")
+    }
+}

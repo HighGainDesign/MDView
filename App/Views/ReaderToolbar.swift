@@ -110,6 +110,10 @@ struct ReaderToolbar: View {
                 Button("Actual Size") { reader.zoom = 1 }
                 if let url = reader.fileURL {
                     Divider()
+                    Button(reader.fileUpdatesPaused ? "Resume Updates" : "Pause Updates") {
+                        reader.setFileUpdatesPaused(!reader.fileUpdatesPaused)
+                    }
+                    Divider()
                     Toggle("Save Checkmarks Automatically", isOn: $reader.checklistMode)
                         .disabled(reader.checklistSaving || reader.rendered?.checkboxCount == 0)
                         .help("For this document only. Each checkbox change is saved immediately; Undo is available.")
@@ -139,9 +143,9 @@ struct ReaderStatusBar: View {
                           ? "This preview is held. Resume to show the latest streamed text."
                           : "Follows the editor publishing to the Marked-compatible channel. Source names are supplied by the editor.")
             } else if reader.fileURL != nil {
-                Label(reader.checklistMode ? (reader.checklistSaving ? "Saving checkbox…" : (reader.checklistError == nil ? "Checkmarks saved" : "Checkbox not saved")) : (reader.errorMessage == nil ? "Automatic updates" : "Refresh failed"),
-                      systemImage: reader.errorMessage == nil && reader.checklistError == nil ? "arrow.triangle.2.circlepath" : "exclamationmark.triangle")
-                    .help("Saved file changes appear automatically. Use Review Changes to compare with the last version you marked reviewed.")
+                Label(reader.fileUpdatesPaused ? (reader.hasPendingFileUpdate ? "Newer version waiting" : "Updates paused") : reader.checklistMode ? (reader.checklistSaving ? "Saving checkbox…" : (reader.checklistError == nil ? "Checkmarks saved" : "Checkbox not saved")) : (reader.errorMessage == nil ? "Automatic updates" : "Refresh failed"),
+                      systemImage: reader.fileUpdatesPaused ? "pause.circle" : reader.errorMessage == nil && reader.checklistError == nil ? "arrow.triangle.2.circlepath" : "exclamationmark.triangle")
+                    .help(reader.fileUpdatesPaused ? "Resume Updates to show the latest saved version. Checkmarks cannot save while a newer version is waiting." : "Saved file changes appear automatically. Use Review Changes to compare with the last version you marked reviewed.")
             } else {
                 Text("Snapshot preview").help("This preview does not receive live updates.")
             }

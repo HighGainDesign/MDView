@@ -1,0 +1,113 @@
+// App-owned code, evaluated only in MDView's isolated WKContentWorld.
+// Document-supplied JavaScript remains disabled.
+const main = document.getElementById('document');
+const selector = 'h1,h2,h3,h4,h5,h6,p,li,pre,tr,dt,dd,figure';
+function visibleAnchor() {
+    if (!main) return null;
+    const blocks = Array.from(main.querySelectorAll(selector));
+    const visible = blocks.filter(node => {
+        const rect = node.getBoundingClientRect();
+        return rect.height > 0 && rect.bottom > 0 && rect.top < innerHeight;
+    });
+    const node = visible.sort((a,b) => Math.abs(a.getBoundingClientRect().top) - Math.abs(b.getBoundingClientRect().top))[0];
+    if (!node) return null;
+    const index = blocks.indexOf(node);
+    // If the reading block disappears, prefer the next surviving block.
+    const candidates = [node, ...blocks.slice(index + 1), ...blocks.slice(0,index).reverse()];
+    return {top:node.getBoundingClientRect().top, candidates};
+}
+function descriptor(node) {
+    return {id:node.id, tag:node.tagName, text:node.textContent};
+}
+function snapshot() {
+    const anchor = visibleAnchor();
+    return {x:scrollX, y:scrollY, top:anchor?.top ?? 0,
+        candidates:anchor ? anchor.candidates.slice(0,128).map(descriptor) : []};
+}
+function scrollInstant(x,y) {
+    const previous = document.documentElement.style.scrollBehavior;
+    document.documentElement.style.scrollBehavior = 'auto';
+    window.scrollTo(x,y);
+    document.documentElement.style.scrollBehavior = previous;
+}
+function restore(position) {
+    if (!position) return;
+    let target;
+    const blocks = Array.from(document.querySelectorAll(selector));
+    for (const candidate of position.candidates ?? []) {
+        if (candidate.id) target = document.getElementById(candidate.id);
+        if (!target) target = blocks.find(node => node.tagName === candidate.tag && node.textContent === candidate.text);
+        if (target) break;
+    }
+    scrollInstant(position.x, target ? scrollY + target.getBoundingClientRect().top - position.top : position.y);
+}
+if (operation === 'capture') return snapshot();
+if (operation === 'restore') { restore(position); return true; }
+if (operation !== 'update') return false;
+const next = new DOMParser().parseFromString(html,'text/html');
+const nextMain = next.getElementById('document');
+// A changed CSP or stylesheet must still take the full navigation path.
+if (!main || !nextMain || next.head.innerHTML !== document.head.innerHTML) return false;
+const anchor = visibleAnchor();
+const x = scrollX, y = scrollY;
+const active = document.activeElement;
+function identity(node) {
+    if (node.nodeType !== Node.ELEMENT_NODE) return `${node.nodeType}:${node.nodeValue}`;
+    const content = node.tagName === 'INPUT' ? node.getAttribute('aria-label') ?? '' :
+        node.tagName === 'IMG' ? node.getAttribute('data-mdview-image-source') ?? node.getAttribute('src') ?? '' : node.textContent;
+    // Generated review IDs and task offsets are not stable identities. Bound
+    // keys on large nested blocks; reconciliation still checks all their text.
+    return `${node.tagName}:${content.length}:${content.slice(0,256)}:${content.slice(-128)}`;
+}
+function compatible(a,b) { return a.nodeType === b.nodeType && a.nodeName === b.nodeName; }
+function attributes(a,b) {
+    for (const attr of Array.from(a.attributes)) if (!(a.tagName === 'INPUT' && attr.name === 'disabled') && !b.hasAttribute(attr.name)) a.removeAttribute(attr.name);
+    for (const attr of Array.from(b.attributes)) if (!(a.tagName === 'INPUT' && attr.name === 'disabled') && a.getAttribute(attr.name) !== attr.value) a.setAttribute(attr.name,attr.value);
+}
+function reconcile(a,b) {
+    if (a === b) return;
+    if (a.nodeType !== Node.ELEMENT_NODE) {
+        if (a.nodeValue !== b.nodeValue) a.nodeValue = b.nodeValue;
+        return;
+    }
+    attributes(a,b);
+    const oldChildren = Array.from(a.childNodes), newChildren = Array.from(b.childNodes);
+    const byIdentity = new Map();
+    for (const child of oldChildren) {
+        const key = identity(child);
+        if (!byIdentity.has(key)) byIdentity.set(key,[]);
+        byIdentity.get(key).push(child);
+    }
+    const used = new Set();
+    // Claim every exact sibling match before reusing any changed sibling, so
+    // insertions cannot consume the paragraph/input currently being read.
+    const chosen = newChildren.map(child => {
+        const match = byIdentity.get(identity(child))?.shift();
+        if (match) used.add(match);
+        return match;
+    });
+    for (let i=0;i<newChildren.length;i++) {
+        if (chosen[i]) continue;
+        const fallback = oldChildren[i];
+        if (fallback && !used.has(fallback) && compatible(fallback,newChildren[i])) {
+            chosen[i] = fallback; used.add(fallback);
+        }
+    }
+    for (let i=0;i<newChildren.length;i++) {
+        const child = chosen[i] ?? newChildren[i];
+        if (a.childNodes[i] !== child) a.insertBefore(child,a.childNodes[i] ?? null);
+        reconcile(child,newChildren[i]);
+    }
+    for (const child of oldChildren) if (!used.has(child) && child.parentNode === a) child.remove();
+}
+reconcile(main,nextMain);
+attributes(document.body,next.body);
+attributes(document.documentElement,next.documentElement);
+const surviving = anchor?.candidates.find(node => node.isConnected);
+scrollInstant(x,surviving ? scrollY + surviving.getBoundingClientRect().top - anchor.top : y);
+// Keep a surviving DOM focus when a reorder temporarily blurs it. This never
+// makes WebKit the native first responder or focuses an unrelated window.
+if (restoreFocus && active && active !== document.body && active.isConnected && document.activeElement !== active) {
+    active.focus({preventScroll:true});
+}
+return true;

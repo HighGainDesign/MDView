@@ -141,11 +141,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
 
     @objc private func find(_ sender: Any?) { reader?.showFind = true }
     @objc private func reload(_ sender: Any?) { reader?.reload() }
+    @objc private func toggleFileUpdates(_ sender: Any?) {
+        guard let reader else { return }
+        reader.setFileUpdatesPaused(!reader.fileUpdatesPaused)
+    }
     @objc private func zoomIn(_ sender: Any?) { reader?.changeZoom(by: 0.1) }
     private var undoActions: ReaderUndo { ReaderUndo(responder: NSApp.keyWindow?.firstResponder, reader: reader) }
     @objc private func undoCheckbox(_ sender: Any?) { undoActions.undo() }
     @objc private func redoCheckbox(_ sender: Any?) { undoActions.redo() }
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(toggleFileUpdates(_:)) {
+            menuItem.title = reader?.fileUpdatesPaused == true ? "Resume Updates" : "Pause Updates"
+            return reader?.fileURL != nil && reader?.isStreamingPreview == false
+        }
         if menuItem.action == #selector(undoCheckbox(_:)) {
             menuItem.title = undoActions.isEditingText ? "Undo" : "Undo Checkbox Change"
             return undoActions.canUndo
@@ -228,6 +236,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
 
         let view = NSMenu(title: "View")
         add("Reload", to: view, action: #selector(reload(_:)), key: "r", target: self)
+        add("Pause Updates", to: view, action: #selector(toggleFileUpdates(_:)), key: "p", modifiers: [.command, .option], target: self)
         add("Review Changes", to: view, action: #selector(reviewChanges(_:)), key: "r", modifiers: [.command, .shift], target: self)
         add("Toggle Outline", to: view, action: #selector(toggleOutline(_:)), key: "o", modifiers: [.command, .option], target: self)
         view.addItem(.separator())

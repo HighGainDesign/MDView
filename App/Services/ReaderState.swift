@@ -13,22 +13,24 @@ final class ReaderState {
             checklistSaving = false; pendingChecklistSource = nil
             checklistUndo.removeAll(); checklistRedo.removeAll()
             localImageError = nil
+            fileUpdatesPaused = false; pendingFileSource = nil
         }
     }
     var rendered: RenderedMarkdown?
     var errorMessage: String?
-    var showOutline = false
+    var showOutline = false { didSet { if showOutline != oldValue { focusIntentGeneration += 1 } } }
     private var findVisible = false
     private(set) var findFocusGeneration = 0
+    private(set) var focusIntentGeneration = 0
     // Cmd-F is a focus request even when the Find bar is already visible.
     var showFind: Bool {
         get { findVisible }
         set {
             findVisible = newValue
-            if newValue { findFocusGeneration += 1 }
+            if newValue { findFocusGeneration += 1; focusIntentGeneration += 1 }
         }
     }
-    var showChanges = false
+    var showChanges = false { didSet { if showChanges != oldValue { focusIntentGeneration += 1 } } }
     var searchText = ""
     var searchBackwards = false
     var searchGeneration = 0
@@ -37,6 +39,9 @@ final class ReaderState {
     var navigationTarget: String?
     var navigationGeneration = 0
     var currentChangeIndex = -1
+    private(set) var fileUpdatesPaused = false
+    private var pendingFileSource: String?
+    var hasPendingFileUpdate: Bool { pendingFileSource != nil }
     var lastRefreshed: Date?
     var isStreamingPreview = false
     var streamPaused = false
@@ -115,7 +120,33 @@ final class ReaderState {
         render()
     }
 
+    /// Keep polling while paused, but retain only the latest on-disk contents.
+    /// Invalidate write history immediately even though the displayed page stays put.
+    func receiveFileUpdate(_ text: String) {
+        guard fileURL != nil, !isStreamingPreview else { return }
+        if text != source && text != pendingChecklistSource {
+            checklistUndo.removeAll(); checklistRedo.removeAll()
+        }
+        if fileUpdatesPaused {
+            pendingFileSource = text == source ? nil : text
+            errorMessage = nil
+        } else {
+            acceptFileUpdate(text)
+        }
+    }
+
+    func setFileUpdatesPaused(_ paused: Bool) {
+        guard fileURL != nil, !isStreamingPreview else { return }
+        fileUpdatesPaused = paused
+        if !paused, let latest = pendingFileSource {
+            pendingFileSource = nil
+            acceptFileUpdate(latest)
+        }
+    }
+
     func acceptFileUpdate(_ text: String) {
+        if pendingFileSource == text { pendingFileSource = nil }
+        errorMessage = nil
         if text != source && text != pendingChecklistSource {
             checklistUndo.removeAll(); checklistRedo.removeAll()
         }
@@ -136,7 +167,7 @@ final class ReaderState {
 
     @discardableResult
     func requestTaskChecked(_ id: Int, checked: Bool) -> Bool {
-        guard !checklistSaving, !isRendering, !showChecklistConfirmation,
+        guard !hasPendingFileUpdate, !checklistSaving, !isRendering, !showChecklistConfirmation,
               !isStreamingPreview, let fileURL, let rendered, rendered.taskSource == source,
               let task = rendered.tasks.first(where: { $0.id == id }), task.checked != checked else { return false }
         if checklistMode { setTaskChecked(id, checked: checked) }
@@ -157,7 +188,7 @@ final class ReaderState {
         cancelChecklistConfirmation()
         guard pending.fileURL == fileURL, !isStreamingPreview else { return }
         checklistMode = true
-        guard pending.source == source else {
+        guard pending.source == source, !hasPendingFileUpdate else {
             checklistError = ChecklistError.changed.localizedDescription
             reload()
             return
@@ -168,7 +199,7 @@ final class ReaderState {
     }
 
     func setTaskChecked(_ id: Int, checked: Bool) {
-        guard let rendered, rendered.taskSource == source,
+        guard !hasPendingFileUpdate, let rendered, rendered.taskSource == source,
               let task = rendered.tasks.first(where: { $0.id == id }), task.checked != checked else { return }
         performChecklistChange(task: task, marker: checked ? 120 : 32, history: .normal)
     }
@@ -184,7 +215,7 @@ final class ReaderState {
     }
 
     private func performChecklistChange(task: MarkdownTask, marker: UInt8, history: ChecklistHistory, allowRendering: Bool = false) {
-        guard checklistMode, !checklistSaving, (!isRendering || allowRendering), !isStreamingPreview, let fileURL else { return }
+        guard !hasPendingFileUpdate, checklistMode, !checklistSaving, (!isRendering || allowRendering), !isStreamingPreview, let fileURL else { return }
         let expected = source
         do {
             pendingChecklistSource = try MarkdownSource.decode(MarkdownTasks.patch(Data(expected.utf8), expectedSource: expected, task: task, marker: marker))
@@ -262,9 +293,11 @@ final class ReaderState {
             guard stamp != lastStamp || errorMessage != nil else { continue }
             do {
                 let newSource = try await MarkdownSource.readInBackground(fileURL)
-                guard !Task.isCancelled else { return }
+                guard !Task.isCancelled, self.fileURL == fileURL else { return }
+                // A save during the asynchronous read makes that snapshot obsolete.
+                guard FileStamp(url: fileURL) == stamp else { continue }
                 lastStamp = stamp
-                acceptFileUpdate(newSource)
+                receiveFileUpdate(newSource)
             } catch {
                 guard !Task.isCancelled else { return }
                 errorMessage = "Could not refresh: \(error.localizedDescription)"
@@ -309,9 +342,11 @@ final class ReaderState {
         readTask?.cancel()
         readTask = Task { [weak self] in
             do {
+                let stamp = FileStamp(url: fileURL)
                 let text = try await MarkdownSource.readInBackground(fileURL)
-                guard !Task.isCancelled, let self else { return }
-                acceptFileUpdate(text)
+                guard !Task.isCancelled, let self, self.fileURL == fileURL else { return }
+                guard FileStamp(url: fileURL) == stamp else { self.reload(); return }
+                receiveFileUpdate(text)
             } catch {
                 guard !Task.isCancelled else { return }
                 self?.errorMessage = error.localizedDescription
@@ -324,6 +359,7 @@ final class ReaderState {
     func stop() {
         cancelChecklistConfirmation()
         checklistMode = false
+        pendingFileSource = nil
         streamPaused = true
         isStreamingPreview = false
         renderTask?.cancel()
