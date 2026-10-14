@@ -189,7 +189,7 @@ final class ReadingPositionTests: XCTestCase {
         fixture.reader.acceptFileUpdate(fixture.source.replacingOccurrences(of:"- [ ] Task 0\n",with:"- [x] Task 0\n"))
         for _ in 0..<200 {
             if !fixture.reader.isRendering,
-               let checked = try? await fixture.web.evaluateJavaScript("document.querySelector('input').defaultChecked") as? Bool, checked { break }
+               let ready = try? await fixture.web.evaluateJavaScript("document.querySelector('input').defaultChecked && !document.querySelector('input').disabled") as? Bool, ready { break }
             try await Task.sleep(for:.milliseconds(20))
         }
         fixture.reader.jumpToUncheckedTask()

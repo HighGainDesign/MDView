@@ -65,6 +65,63 @@ final class ReaderLayoutTests: XCTestCase {
         XCTAssertEqual(try MarkdownSource.read(file),updated)
     }
 
+    func testDoubleLengthInterfaceKeepsReaderAndSettingsUsable() async throws {
+        // Run once normally and once from an isolated .xctestrun with
+        // -NSDoubleLocalizedStrings YES set before Foundation caches strings.
+        let expanded = ProcessInfo.processInfo.arguments.contains("-NSDoubleLocalizedStrings")
+        XCTAssertEqual(String(localized: "Before"), expanded ? "Before Before" : "Before")
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".md")
+        defer { try? FileManager.default.removeItem(at: file) }
+        let reader = ReaderState(); reader.fileURL = file
+        reader.source = "# Reading\n\nOriginal text.\n"
+        try reader.source.write(to: file, atomically: true, encoding: .utf8)
+        reader.render()
+        let controller = NSHostingController(rootView: ReaderView(reader: reader).environment(\.layoutDirection, .rightToLeft))
+        let window = NSWindow(contentViewController: controller)
+        window.isReleasedWhenClosed = false
+        window.setContentSize(NSSize(width: 1180, height: 760)); window.orderFront(nil)
+        defer { window.close(); reader.stop() }
+        for _ in 0..<200 {
+            if let web = findWebView(controller.view), !web.isLoading,
+               let ready = try? await web.evaluateJavaScript("!!document.querySelector('h1')") as? Bool, ready { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        let updated = "# Reading\n\nUpdated text.\n"
+        try updated.write(to: file, atomically: true, encoding: .utf8)
+        reader.acceptFileUpdate(updated)
+        reader.showOutline = true; reader.showChanges = true
+        for _ in 0..<200 {
+            controller.view.layoutSubtreeIfNeeded()
+            if !reader.isRendering, reader.changes.count == 1, let web = findWebView(controller.view),
+               let panel = findReviewPanel(controller.view), web.bounds.width > 240, panel.bounds.width > 280,
+               let ready = try? await web.evaluateJavaScript("document.querySelector('main')?.textContent.includes('Updated text.')") as? Bool, ready { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        XCTAssertEqual(reader.changes.count, 1)
+        let web = try XCTUnwrap(findWebView(controller.view)), panel = try XCTUnwrap(findReviewPanel(controller.view))
+        XCTAssertFalse(web.convert(web.bounds, to: controller.view).intersects(panel.convert(panel.bounds, to: controller.view)))
+        XCTAssertGreaterThan(web.bounds.width, 240)
+        XCTAssertGreaterThan(panel.bounds.width, 280)
+        try capture(controller.view, name: expanded ? "expanded-reader" : "normal-reader")
+        let settings = NSHostingController(rootView: SettingsView().environment(\.layoutDirection, .rightToLeft))
+        let settingsWindow = NSWindow(contentViewController: settings)
+        settingsWindow.isReleasedWhenClosed = false
+        settingsWindow.orderFront(nil)
+        defer { settingsWindow.close() }
+        await Task.yield(); settings.view.layoutSubtreeIfNeeded()
+        XCTAssertGreaterThan(settings.view.bounds.width, 590)
+        try capture(settings.view, name: expanded ? "expanded-settings" : "normal-settings")
+    }
+
+    private func capture(_ view: NSView, name: String) throws {
+        let bitmap = try XCTUnwrap(view.bitmapImageRepForCachingDisplay(in: view.bounds))
+        view.cacheDisplay(in: view.bounds, to: bitmap)
+        let png = try XCTUnwrap(bitmap.representation(using: .png, properties: [:]))
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("MDView-1.3-layout-evidence", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try png.write(to: directory.appendingPathComponent(name + ".png"))
+    }
+
     private func findWebView(_ view:NSView) -> WKWebView? {
         if let web = view as? WKWebView { return web }
         for child in view.subviews { if let web = findWebView(child) { return web } }
