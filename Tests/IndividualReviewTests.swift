@@ -134,6 +134,17 @@ final class IndividualReviewTests: XCTestCase {
         reader.stop()
     }
 
+    func testChangeShortcutOpensReviewForADeletionWithoutMovingSource() async throws {
+        let reader = makeReader("# Notes\n\nDeleted paragraph.\n\nKeep.")
+        reader.acceptFileUpdate("# Notes\n\nKeep.")
+        try await settle(reader)
+        reader.jumpToChange(focus:true)
+        XCTAssertEqual(reader.selectedChange?.kind,.removed)
+        XCTAssertTrue(reader.showChanges,"A removed change has no document target; its review must become reachable")
+        XCTAssertEqual(reader.source,"# Notes\n\nKeep.")
+        reader.stop()
+    }
+
     private func makeReader(_ text: String) -> ReaderState {
         let reader = ReaderState()
         reader.fileURL = URL(fileURLWithPath: "/tmp/review-\(UUID().uuidString).md")

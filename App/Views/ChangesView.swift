@@ -3,6 +3,8 @@ import SwiftUI
 struct ChangesView: View {
     let reader: ReaderState
     let dismiss: () -> Void
+    @FocusState private var reviewFocused: Bool
+    @AccessibilityFocusState private var accessibleReviewFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -39,6 +41,7 @@ struct ChangesView: View {
                 VStack(spacing: 8) {
                     Button("Mark This Reviewed") { reader.markCurrentChangeReviewed() }
                         .buttonStyle(.borderedProminent)
+                        .focused($reviewFocused).accessibilityFocused($accessibleReviewFocused)
                         .help("Clear this highlight and advance to the next change")
                     Button("Mark All Reviewed") { reader.markReviewed() }
                         .help("Acknowledge every remaining change in this document")
@@ -49,7 +52,7 @@ struct ChangesView: View {
                     .font(.title3).padding(.vertical, 6)
                 Text("New saved changes will appear here automatically. Reviewing changes never modifies the file.")
                     .foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-                HStack { Spacer(); Button("Done", action: dismiss) }
+                HStack { Spacer(); Button("Done", action: dismiss).focused($reviewFocused).accessibilityFocused($accessibleReviewFocused) }
             }
             if let refreshed = reader.lastRefreshed {
                 Text("Last refreshed \(refreshed.formatted(date: .omitted, time: .standard))")
@@ -60,6 +63,14 @@ struct ChangesView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("review-panel")
+        .task(id: reader.returnFocusGeneration) {
+            guard reader.returnFocusGeneration > 0, reader.navigationReturnTarget == .review else { return }
+            let intent = reader.focusIntentGeneration
+            await Task.yield()
+            guard !Task.isCancelled, intent == reader.focusIntentGeneration else { return }
+            reviewFocused = true
+            accessibleReviewFocused = true
+        }
     }
 
     private func changeDetail(_ change: DocumentChange) -> some View {
@@ -70,22 +81,22 @@ struct ChangesView: View {
                     .foregroundStyle(change.kind == .removed ? .red : (change.kind == .added ? .green : .orange))
                 Spacer()
                 if let target = change.targetID {
-                    Button("Show in Document") { reader.navigate(to: target) }
+                    Button("Show in Document") { reader.navigate(to: target, returnTo: .review) }
                 }
             }
-            if !change.before.isEmpty {
+            if !change.beforeAccessibleText.isEmpty {
                 Text("Before").font(.caption.weight(.medium)).foregroundStyle(.secondary)
-                Text(excerpt(change.before)).foregroundStyle(.secondary).textSelection(.enabled)
+                Text(excerpt(change.beforeAccessibleText)).foregroundStyle(.secondary).textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(10).background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
             }
-            if !change.after.isEmpty {
-                Text(change.kind == .added ? "Added text" : "Now").font(.caption.weight(.medium)).foregroundStyle(.secondary)
-                Text(excerpt(change.after)).textSelection(.enabled)
+            if !change.afterAccessibleText.isEmpty {
+                Text("After").font(.caption.weight(.medium)).foregroundStyle(.secondary)
+                Text(excerpt(change.afterAccessibleText)).textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(10).background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
             }
-            if change.before == change.after {
+            if change.beforeAccessibleText == change.afterAccessibleText {
                 Text("Formatting, a link target, an image, or task status changed.")
                     .font(.caption).foregroundStyle(.secondary)
             }

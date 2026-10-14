@@ -36,9 +36,9 @@ struct MarkdownWebView: NSViewRepresentable {
             coordinator.imageReloadGeneration = reader.imageReloadGeneration
             coordinator.load(html, forceNavigation: resourcesChanged)
         }
-        if coordinator.navigationGeneration != reader.navigationGeneration, let heading = reader.navigationTarget {
+        if coordinator.navigationGeneration != reader.navigationGeneration, let request = reader.navigationRequest {
             coordinator.navigationGeneration = reader.navigationGeneration
-            coordinator.navigate(to: heading)
+            coordinator.navigate(request)
         }
         coordinator.configureTasks()
         if coordinator.searchGeneration != reader.searchGeneration {
@@ -72,7 +72,7 @@ struct MarkdownWebView: NSViewRepresentable {
         private var activeLoadGeneration = 0
         private var activeNavigation: WKNavigation?
         private var contentReady = false
-        private var pendingTarget: String?
+        private var pendingTarget: ReaderNavigation?
         private var taskConfiguration: String?
         private var taskFocus: (file: URL, source: String, updated: String, task: MarkdownTask, focusIntent: Int)?
 
@@ -104,7 +104,7 @@ struct MarkdownWebView: NSViewRepresentable {
                         activeNavigation = nil
                         contentReady = true
                         configureTasks()
-                        if let target = pendingTarget { pendingTarget = nil; navigate(to: target) }
+                        if let target = pendingTarget { pendingTarget = nil; navigate(target) }
                         if !reader.searchText.isEmpty { find() }
                         return
                     }
@@ -132,7 +132,7 @@ struct MarkdownWebView: NSViewRepresentable {
                     _ = try? await webView.callAsyncJavaScript(Self.documentScript,
                         arguments: ["operation": "restore", "position": position], in: nil, contentWorld: Self.taskWorld)
                 }
-                if let target { navigate(to: target) }
+                if let target { navigate(target) }
             }
             configureTasks()
             if !reader.searchText.isEmpty { find() }
@@ -231,12 +231,21 @@ struct MarkdownWebView: NSViewRepresentable {
             return responder === webView || (responder as? NSView)?.isDescendant(of: webView) == true
         }
 
-        func navigate(to id: String) {
+        func navigate(_ request: ReaderNavigation) {
             guard let webView else { return }
-            guard contentReady else { pendingTarget = id; return }
-            Task {
-                _ = try? await webView.callAsyncJavaScript("document.getElementById(id)?.scrollIntoView()",
-                    arguments: ["id": id], in: nil, contentWorld: .page)
+            guard contentReady else { pendingTarget = request; return }
+            Task { [weak self] in
+                guard let self, reader.navigationRequest == request else { return }
+                let focus = request.focus && reader.focusIntentGeneration == request.focusIntent
+                if focus { webView.window?.makeFirstResponder(webView) }
+                var arguments: [String: Any] = ["operation": "navigate", "focus": focus]
+                switch request.destination {
+                case .element(let id): arguments["kind"] = "element"; arguments["id"] = id
+                case .uncheckedTask(let backwards): arguments["kind"] = "unchecked"; arguments["backwards"] = backwards
+                case .readingPosition: arguments["kind"] = "reading"
+                }
+                _ = try? await webView.callAsyncJavaScript(Self.documentScript,
+                    arguments: arguments, in: nil, contentWorld: Self.taskWorld)
             }
         }
 

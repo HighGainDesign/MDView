@@ -11,6 +11,10 @@ struct DocumentChange: Identifiable, Sendable {
     /// Offset in this render's in-memory baseline, never in the source file.
     let baselineOffset: Int
     let replacement: ReadingUnit?
+    var beforeDescription: String? = nil
+    var afterDescription: String? = nil
+    var beforeAccessibleText: String { beforeDescription ?? before }
+    var afterAccessibleText: String { afterDescription ?? after }
 }
 
 /// Rendered blocks let review advance without serializing or editing Markdown.
@@ -137,7 +141,8 @@ enum DocumentChanges {
                     }
                     summary.entries.append(DocumentChange(id: index, kind: kind, targetID: target,
                         before: before, after: after, baselineOffset: oldStart + min(i, oldRun.count),
-                        replacement: replacement))
+                        replacement: replacement, beforeDescription: try accessibleDescription(previous),
+                        afterDescription: try accessibleDescription(updated)))
                 }
             } else {
                 oldIndex += 1
@@ -145,6 +150,33 @@ enum DocumentChanges {
             }
         }
         return summary
+    }
+
+    /// Text alone loses checked state, image alternatives and link destinations.
+    /// Describe the sanitized DOM already used for review, without reparsing Markdown.
+    private static func accessibleDescription(_ element: Element?) throws -> String? {
+        guard let element else { return nil }
+        let text = try element.text()
+        var details: [String] = []
+        let checkboxes = try element.select("input[type=checkbox]").array()
+        for checkbox in checkboxes {
+            let label = try checkbox.attr("aria-label")
+            let state = checkbox.hasAttr("checked") ? String(localized: "Checked checkbox") : String(localized: "Unchecked checkbox")
+            details.append(label.isEmpty ? state : String(localized: "\(label): \(state)"))
+        }
+        for link in try element.select("a[href]").array() {
+            let label = try link.text(), destination = try link.attr("href")
+            details.append(String(localized: "Link \(label): \(destination)"))
+        }
+        for image in try element.select("img").array() {
+            let label = try image.attr("alt")
+            let source = try image.attr("data-mdview-image-source")
+            details.append(String(localized: "Image \(label): \(source)"))
+        }
+        if checkboxes.count == 1, details.count == 1, text == (try checkboxes[0].attr("aria-label")) {
+            return details[0]
+        }
+        return ([text] + details).filter { !$0.isEmpty }.joined(separator: "\n")
     }
 
     private static func units(in document: Document) throws -> [Element] {

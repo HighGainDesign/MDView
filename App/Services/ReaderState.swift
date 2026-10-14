@@ -36,7 +36,9 @@ final class ReaderState {
     var searchGeneration = 0
     var searchFound = true
     var selectedHeading: String?
-    var navigationTarget: String?
+    private(set) var navigationRequest: ReaderNavigation?
+    private(set) var navigationReturnTarget: ReaderNavigation.ReturnTarget?
+    private(set) var returnFocusGeneration = 0
     var navigationGeneration = 0
     var currentChangeIndex = -1
     private(set) var fileUpdatesPaused = false
@@ -78,17 +80,48 @@ final class ReaderState {
         return changes.entries[min(max(0, currentChangeIndex), changes.count - 1)]
     }
 
-    func navigate(to id: String) {
-        navigationTarget = id
+    func navigate(to id: String, focus: Bool = true, returnTo: ReaderNavigation.ReturnTarget? = nil) {
+        requestNavigation(.element(id), focus: focus, returnTo: returnTo ?? .outline(id))
+    }
+
+    func focusDocument() {
+        requestNavigation(.readingPosition, focus: true, returnTo: showFind ? .find : nil)
+    }
+
+    func jumpToUncheckedTask(backwards: Bool = false) {
+        requestNavigation(.uncheckedTask(backwards: backwards), focus: true, returnTo: showFind ? .find : nil)
+    }
+
+    private func requestNavigation(_ destination: ReaderNavigation.Destination, focus: Bool, returnTo: ReaderNavigation.ReturnTarget?) {
+        if focus {
+            focusIntentGeneration += 1
+            navigationReturnTarget = returnTo
+        }
+        navigationRequest = ReaderNavigation(destination: destination, focus: focus, focusIntent: focusIntentGeneration)
         navigationGeneration += 1
     }
 
-    func jumpToChange(backwards: Bool = false) {
+    func returnToNavigation() {
+        guard let target = navigationReturnTarget else { return }
+        focusIntentGeneration += 1
+        switch target {
+        case .find: showFind = true
+        case .outline: showOutline = true
+        case .review: showChanges = true
+        }
+        returnFocusGeneration += 1
+    }
+
+    func jumpToChange(backwards: Bool = false, focus: Bool = false) {
         let entries = changes.entries
         guard !entries.isEmpty else { return }
         if currentChangeIndex < 0 { currentChangeIndex = backwards ? entries.count - 1 : 0 }
         else { currentChangeIndex = (currentChangeIndex + (backwards ? -1 : 1) + entries.count) % entries.count }
-        if let target = entries[currentChangeIndex].targetID { navigate(to: target) }
+        if let target = entries[currentChangeIndex].targetID { navigate(to: target, focus: focus, returnTo: .review) }
+        else if focus {
+            navigationReturnTarget = .review
+            returnToNavigation()
+        }
     }
 
     func markReviewed() {
@@ -268,7 +301,7 @@ final class ReaderState {
                     currentChangeIndex = output.changes.count == 0 ? -1 : min(max(0, currentChangeIndex), output.changes.count - 1)
                     if advanceAfterReview {
                         advanceAfterReview = false
-                        if let target = selectedChange?.targetID { navigate(to: target) }
+                        if let target = selectedChange?.targetID { navigate(to: target, focus: false) }
                     }
                 }
             } catch {

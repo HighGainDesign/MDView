@@ -41,6 +41,34 @@ function restore(position) {
     }
     scrollInstant(position.x, target ? scrollY + target.getBoundingClientRect().top - position.top : position.y);
 }
+if (operation === 'navigate') {
+    let target;
+    if (kind === 'element') {
+        target = document.getElementById(id);
+        window.mdviewLastTask = null;
+    } else if (kind === 'unchecked') {
+        const tasks = Array.from(main?.querySelectorAll('input[type="checkbox"]') ?? []).filter(node => !node.defaultChecked);
+        if (!tasks.length) return false;
+        const active = document.activeElement;
+        let index = tasks.findIndex(node => node === active || node === window.mdviewLastTask || node.closest('li') === active);
+        if (index >= 0) index = (index + (backwards ? -1 : 1) + tasks.length) % tasks.length;
+        else {
+            const next = tasks.findIndex(node => node.getBoundingClientRect().top >= 0);
+            index = backwards ? (next < 0 ? tasks.length-1 : (next-1+tasks.length)%tasks.length) : (next < 0 ? 0 : next);
+        }
+        window.mdviewLastTask = tasks[index];
+        target = tasks[index].disabled ? tasks[index].closest('li') ?? tasks[index].parentElement : tasks[index];
+    } else if (kind === 'reading') {
+        target = visibleAnchor()?.candidates[0] ?? main;
+    }
+    if (!target) return false;
+    if (focus) {
+        if (!target.matches('a[href],input:not([disabled]),button,summary')) target.tabIndex = -1;
+        target.focus({preventScroll:true});
+    }
+    if (kind !== 'reading') target.scrollIntoView({block:'start'});
+    return true;
+}
 if (operation === 'capture') return snapshot();
 if (operation === 'restore') { restore(position); return true; }
 if (operation !== 'update') return false;

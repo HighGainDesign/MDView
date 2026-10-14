@@ -145,11 +145,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
         guard let reader else { return }
         reader.setFileUpdatesPaused(!reader.fileUpdatesPaused)
     }
+    @objc private func focusDocument(_ sender: Any?) { reader?.focusDocument() }
+    @objc private func returnToNavigation(_ sender: Any?) { reader?.returnToNavigation() }
+    @objc private func nextUncheckedTask(_ sender: Any?) { reader?.jumpToUncheckedTask() }
+    @objc private func previousUncheckedTask(_ sender: Any?) { reader?.jumpToUncheckedTask(backwards: true) }
+    @objc private func nextChange(_ sender: Any?) { reader?.jumpToChange(focus: true) }
+    @objc private func previousChange(_ sender: Any?) { reader?.jumpToChange(backwards: true, focus: true) }
     @objc private func zoomIn(_ sender: Any?) { reader?.changeZoom(by: 0.1) }
     private var undoActions: ReaderUndo { ReaderUndo(responder: NSApp.keyWindow?.firstResponder, reader: reader) }
     @objc private func undoCheckbox(_ sender: Any?) { undoActions.undo() }
     @objc private func redoCheckbox(_ sender: Any?) { undoActions.redo() }
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(focusDocument(_:)) { return reader?.rendered != nil }
+        if menuItem.action == #selector(returnToNavigation(_:)) { return reader?.navigationReturnTarget != nil }
+        if menuItem.action == #selector(nextUncheckedTask(_:)) || menuItem.action == #selector(previousUncheckedTask(_:)) {
+            return (reader?.rendered?.checkboxCount ?? 0) > 0
+        }
+        if menuItem.action == #selector(nextChange(_:)) || menuItem.action == #selector(previousChange(_:)) {
+            return (reader?.changes.count ?? 0) > 0
+        }
         if menuItem.action == #selector(toggleFileUpdates(_:)) {
             menuItem.title = reader?.fileUpdatesPaused == true ? "Resume Updates" : "Pause Updates"
             return reader?.fileURL != nil && reader?.isStreamingPreview == false
@@ -239,6 +253,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
         add("Pause Updates", to: view, action: #selector(toggleFileUpdates(_:)), key: "p", modifiers: [.command, .option], target: self)
         add("Review Changes", to: view, action: #selector(reviewChanges(_:)), key: "r", modifiers: [.command, .shift], target: self)
         add("Toggle Outline", to: view, action: #selector(toggleOutline(_:)), key: "o", modifiers: [.command, .option], target: self)
+        view.addItem(.separator())
+        add("Focus Document", to: view, action: #selector(focusDocument(_:)), key: "d", modifiers: [.command, .option], target: self)
+        add("Return to Navigation", to: view, action: #selector(returnToNavigation(_:)), key: String(UnicodeScalar(NSLeftArrowFunctionKey)!), modifiers: [.command, .option], target: self)
+        add("Next Unchecked Task", to: view, action: #selector(nextUncheckedTask(_:)), key: "j", modifiers: [.command, .option], target: self)
+        add("Previous Unchecked Task", to: view, action: #selector(previousUncheckedTask(_:)), key: "j", modifiers: [.command, .option, .shift], target: self)
+        add("Next Unreviewed Change", to: view, action: #selector(nextChange(_:)), key: "]", modifiers: [.command, .option], target: self)
+        add("Previous Unreviewed Change", to: view, action: #selector(previousChange(_:)), key: "[", modifiers: [.command, .option], target: self)
         view.addItem(.separator())
         add("Zoom In", to: view, action: #selector(zoomIn(_:)), key: "+", target: self)
         add("Zoom Out", to: view, action: #selector(zoomOut(_:)), key: "-", target: self)

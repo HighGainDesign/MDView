@@ -101,6 +101,77 @@ final class ReadingPositionTests: XCTestCase {
         XCTAssertTrue(fixture.reader.source.contains("- [x] Task 30"))
     }
 
+    func testHeadingJumpFocusesDestinationAndNewerFindKeepsTypingFocus() async throws {
+        let fixture = try await fixture()
+        defer { fixture.close() }
+        fixture.reader.showFind = true
+        for _ in 0..<100 where !(fixture.window.firstResponder is NSTextView) { try await Task.sleep(for:.milliseconds(20)) }
+        fixture.reader.navigate(to:"mdview-section-40")
+        for _ in 0..<100 {
+            if let id = try? await fixture.web.evaluateJavaScript("document.activeElement.id") as? String, id == "mdview-section-40" { break }
+            try await Task.sleep(for:.milliseconds(20))
+        }
+        let id = try await fixture.web.evaluateJavaScript("document.activeElement.id") as? String
+        XCTAssertEqual(id,"mdview-section-40","Outline navigation must focus its heading, not just scroll")
+        XCTAssertFalse(fixture.window.firstResponder is NSTextView,"Explicit document navigation should leave the Find field")
+        fixture.reader.navigate(to:"mdview-section-41")
+        fixture.reader.showFind = true
+        for _ in 0..<100 where !(fixture.window.firstResponder is NSTextView) { try await Task.sleep(for:.milliseconds(20)) }
+        try await Task.sleep(for:.milliseconds(100))
+        XCTAssertTrue(fixture.window.firstResponder is NSTextView,"A queued jump must not override a newer Find request")
+        XCTAssertEqual(try MarkdownSource.read(fixture.file),fixture.source)
+    }
+
+    func testUncheckedTaskShortcutsSkipCheckedTasksWrapAndDoNotWrite() async throws {
+        let fixture = try await fixture()
+        defer { fixture.close() }
+        fixture.reader.acceptFileUpdate(fixture.source.replacingOccurrences(of:"- [ ] Task 0\n",with:"- [x] Task 0\n"))
+        for _ in 0..<200 {
+            if !fixture.reader.isRendering,
+               let checked = try? await fixture.web.evaluateJavaScript("document.querySelector('input').defaultChecked") as? Bool, checked { break }
+            try await Task.sleep(for:.milliseconds(20))
+        }
+        fixture.reader.jumpToUncheckedTask()
+        try await waitForActiveTask("1", in:fixture.web)
+        fixture.reader.jumpToUncheckedTask(backwards:true)
+        try await waitForActiveTask("59", in:fixture.web)
+        fixture.reader.jumpToUncheckedTask()
+        try await waitForActiveTask("1", in:fixture.web)
+        XCTAssertEqual(try MarkdownSource.read(fixture.file),fixture.source)
+    }
+
+    func testDocumentEntryKeepsReadingPositionAndReturnsToFind() async throws {
+        let fixture = try await fixture()
+        defer { fixture.close() }
+        _ = try await fixture.web.callAsyncJavaScript("""
+        const heading = document.getElementById('mdview-section-30');
+        window.scrollTo({top:scrollY+heading.getBoundingClientRect().top-25,behavior:'instant'});
+        """,arguments:[:],in:nil,contentWorld:MarkdownWebView.Coordinator.taskWorld)
+        fixture.reader.showFind = true
+        for _ in 0..<100 where !(fixture.window.firstResponder is NSTextView) { try await Task.sleep(for:.milliseconds(20)) }
+        fixture.reader.focusDocument()
+        for _ in 0..<100 {
+            if let focused = try? await fixture.web.evaluateJavaScript("document.activeElement.id === 'mdview-section-30'") as? Bool, focused { break }
+            try await Task.sleep(for:.milliseconds(20))
+        }
+        let top = try await fixture.web.evaluateJavaScript("document.getElementById('mdview-section-30').getBoundingClientRect().top") as! Double
+        XCTAssertEqual(top,25,accuracy:2)
+        XCTAssertFalse(fixture.window.firstResponder is NSTextView)
+        fixture.reader.returnToNavigation()
+        for _ in 0..<100 where !(fixture.window.firstResponder is NSTextView) { try await Task.sleep(for:.milliseconds(20)) }
+        XCTAssertTrue(fixture.window.firstResponder is NSTextView)
+        XCTAssertEqual(try MarkdownSource.read(fixture.file),fixture.source)
+    }
+
+    private func waitForActiveTask(_ id:String,in web:WKWebView) async throws {
+        for _ in 0..<100 {
+            if let actual = try? await web.evaluateJavaScript("document.activeElement.dataset.mdviewTask") as? String, actual == id { return }
+            try await Task.sleep(for:.milliseconds(20))
+        }
+        let actual = try? await web.evaluateJavaScript("document.activeElement.outerHTML")
+        XCTFail("Expected task \(id) focus, got \(String(describing:actual))")
+    }
+
     @MainActor private struct Fixture {
         let reader: ReaderState
         let window: NSWindow

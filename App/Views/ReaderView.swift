@@ -2,6 +2,8 @@ import SwiftUI
 
 struct ReaderView: View {
     @Bindable var reader: ReaderState
+    @FocusState private var focusedOutlineHeading: String?
+    @AccessibilityFocusState private var accessibleOutlineHeading: String?
     @AppStorage(ReaderPreferences.appearanceKey, store: ReaderPreferences.defaults) private var documentAppearance = DocumentAppearance.system
 
     var body: some View {
@@ -97,8 +99,16 @@ struct ReaderView: View {
         .onChange(of: documentAppearance) { reader.documentAppearance = documentAppearance; reader.render() }
         .onChange(of: reader.wide) { reader.render() }
         .onChange(of: reader.loadRemoteImages) { reader.render() }
+        .task(id: reader.returnFocusGeneration) {
+            guard reader.returnFocusGeneration > 0, case .outline(let id) = reader.navigationReturnTarget else { return }
+            let intent = reader.focusIntentGeneration
+            await Task.yield()
+            guard !Task.isCancelled, intent == reader.focusIntentGeneration else { return }
+            focusedOutlineHeading = id
+            accessibleOutlineHeading = id
+        }
         .onChange(of: reader.showChanges) {
-            if reader.showChanges, let target = reader.selectedChange?.targetID { reader.navigate(to: target) }
+            if reader.showChanges, let target = reader.selectedChange?.targetID { reader.navigate(to: target, focus: false) }
         }
     }
 
@@ -155,6 +165,9 @@ struct ReaderView: View {
                             .frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 5)
                     }.buttonStyle(.plain)
                         .accessibilityValue("Heading level \(heading.level)")
+                        .accessibilityIdentifier("outline-heading-" + heading.id)
+                        .focused($focusedOutlineHeading, equals: heading.id)
+                        .accessibilityFocused($accessibleOutlineHeading, equals: heading.id)
                 }
             }.padding(16).frame(maxWidth: .infinity, alignment: .leading)
         }.frame(width: 220)
