@@ -110,37 +110,37 @@ final class MarkdownTaskTests: XCTestCase {
     func testTableLinkIsNotDuplicatedWithHeadingAndNestedChecklistContext() async throws {
         let source = """
         # Project brief
-        
+
         A small Markdown viewer for reviewing documents from an agent.
-        
+
         ## Checklist
-        
+
         - [x] Review the scope
         - [x] Collect evidence
         - [ ] Verify the release
           - [x] Check a nested item
-        
+
         > - [ ] Review a quoted item
-        
+
         ## Results
-        
+
         | Phase | Owner | Status |
         | --- | --- | --- |
         | Plan | Writer | Ready |
         | Verify | Reader | Pending |
-        
+
         [Apple design guidance](https://developer.apple.com/design/human-interface-guidelines/)
-        
+
         ## Notes
-        
+
         Keep the original formatting when changing checkmarks.
-        
+
         ```swift
         let preview = "read-only by default"
         ```
-        
+
         ## Next steps
-        
+
         Return to the checklist after reviewing the table.
         """
         let result = try await MarkdownRenderer.shared.render(source, mapTasks: true)
