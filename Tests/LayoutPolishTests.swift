@@ -15,7 +15,9 @@ final class LayoutPolishTests: XCTestCase {
         let window = try XCTUnwrap(controller.window), view = try XCTUnwrap(window.contentView)
         window.setContentSize(NSSize(width: 520, height: 480))
         for _ in 0..<20 { view.layoutSubtreeIfNeeded(); await Task.yield() }
-        XCTAssertLessThanOrEqual(view.fittingSize.width, 521, "Setup must fit a compact window rather than clipping its fixed-width content")
+        XCTAssertEqual(view.bounds.width, 520, accuracy: 1)
+        try assertScrollFits(view)
+
     }
 
     func testTranslatedSetupAndSettingsUseTheirAllocatedWindowBounds() async throws {
@@ -29,7 +31,8 @@ final class LayoutPolishTests: XCTestCase {
             let window = NSWindow(contentViewController: setup)
             window.isReleasedWhenClosed = false; window.setContentSize(NSSize(width: 520, height: 480)); window.orderFront(nil)
             for _ in 0..<10 { setup.view.layoutSubtreeIfNeeded(); await Task.yield() }
-            XCTAssertLessThanOrEqual(setup.view.fittingSize.width, 521, language)
+            XCTAssertEqual(setup.view.bounds.width, 520, accuracy: 1, language)
+            try assertScrollFits(setup.view)
             try capture(setup.view, at: directory.appendingPathComponent("setup-" + language + ".png"))
             window.close()
             let settings = NSHostingController(rootView: SettingsView().environment(\.locale, Locale(identifier: language)))
@@ -44,6 +47,19 @@ final class LayoutPolishTests: XCTestCase {
             }
             settingsWindow.close()
         }
+    }
+
+    private func assertScrollFits(_ view: NSView) throws {
+        var scrolls: [NSScrollView] = []
+        func visit(_ node: NSView) {
+            if let scroll = node as? NSScrollView { scrolls.append(scroll) }
+            for child in node.subviews { visit(child) }
+        }
+        visit(view)
+        let scroll = try XCTUnwrap(scrolls.first)
+        let document = try XCTUnwrap(scroll.documentView)
+        XCTAssertLessThanOrEqual(document.bounds.width, scroll.contentView.bounds.width + 1,
+                                 "Setup content must scroll vertically without horizontal clipping")
     }
 
     private func capture(_ view: NSView, at url: URL) throws {

@@ -71,7 +71,12 @@ final class SpeechSession {
     }
 
     func pause() {
-        guard status == .playing, driver.pause() else { return }
+        guard status == .playing else { return }
+        if !driver.pause() {
+            // The synthesizer may still be starting. Cancel its queue so a
+            // fast Pause cannot turn into speech later without another Play.
+            invalidate(); needsRestart = true
+        }
         status = .paused; onProgress?()
     }
     func resume() {
@@ -96,17 +101,18 @@ final class SpeechSession {
         reconfigure()
     }
     func nextSection() {
-        guard let document else { return }
+        guard isActive, let document else { return }
         if let next = document.sections.first(where: { $0.firstSegment > currentIndex }) { seek(next.firstSegment) }
         else { finish() }
     }
     func previousSection() {
+        guard isActive else { return }
         guard let document, !document.sections.isEmpty else { seek(0); return }
         let section = document.sections.lastIndex(where: { $0.firstSegment <= currentIndex }) ?? 0
         seek(document.sections[max(0, section - 1)].firstSegment)
     }
     func seek(_ index: Int, offset: Int = 0) {
-        guard let document, document.segments.indices.contains(index) else { return }
+        guard isActive, let document, document.segments.indices.contains(index) else { return }
         let wasPaused = status == .paused
         invalidate(); currentIndex = index; self.offset = max(0, offset)
         if wasPaused { status = .paused; needsRestart = true }

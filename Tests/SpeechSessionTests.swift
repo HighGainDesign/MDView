@@ -148,6 +148,37 @@ final class SpeechSessionTests: XCTestCase {
         XCTAssertTrue(released)
     }
 
+    func testSectionCommandsCannotRestartStoppedOrCompletedPlayback() async throws {
+        let driver = RecordingSpeechDriver()
+        let session = SpeechSession(driver: driver, voices: { self.voices }, coordinator: SpeechCoordinator())
+        let document = try await fixture()
+        session.play(document); session.stop()
+        let stoppedCount = driver.requests.count
+        session.nextSection(); session.previousSection(); session.seek(1)
+        XCTAssertEqual(session.status, .idle)
+        XCTAssertEqual(driver.requests.count, stoppedCount)
+        session.play(document)
+        while session.status == .playing { driver.send(.finished(driver.requests.last!.token)) }
+        let finishedCount = driver.requests.count
+        session.previousSection(); session.nextSection()
+        XCTAssertEqual(session.status, .finished)
+        XCTAssertEqual(driver.requests.count, finishedCount)
+    }
+
+    func testPauseBeforeEngineStartsCannotLeaveQueuedSpeechPlaying() async throws {
+        let driver = RecordingSpeechDriver(); driver.pauseAccepted = false
+        let session = SpeechSession(driver: driver, voices: { self.voices }, coordinator: SpeechCoordinator())
+        session.play(try await fixture())
+        let original = driver.requests.last!.token
+        session.pause()
+        XCTAssertEqual(session.status, .paused)
+        driver.send(.started(original)); driver.send(.finished(original))
+        XCTAssertEqual(session.status, .paused)
+        session.resume()
+        XCTAssertEqual(session.status, .playing)
+        XCTAssertEqual(driver.requests.count, 2, "Resume must explicitly restart the cancelled queued utterance")
+    }
+
     private func fixture() async throws -> SpeechDocument {
         let rendered = try await MarkdownRenderer.shared.render("# First\n\nFirst paragraph.\n\n# Second\n\nSecond paragraph.\n", prepareSpeech: true)
         return try XCTUnwrap(rendered.speech)
@@ -161,10 +192,11 @@ final class RecordingSpeechDriver: SpeechDriver {
     var useAssistiveTechnologySettings = false
     var requests: [Request] = []
     var paused = false
+    var pauseAccepted = true
     func speak(_ text: String, voice: SpeechVoice?, rate: Double, token: UUID) {
         requests.append(Request(text: text, voice: voice, rate: rate, token: token)); paused = false
     }
-    func pause() -> Bool { paused = true; return true }
+    func pause() -> Bool { paused = pauseAccepted; return pauseAccepted }
     func resume() -> Bool { paused = false; return true }
     func stop() { paused = false }
     func send(_ event: SpeechDriverEvent) { eventHandler?(event) }

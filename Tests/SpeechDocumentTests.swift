@@ -89,5 +89,18 @@ final class SpeechDocumentTests: XCTestCase {
         let output = try await MarkdownRenderer.shared.render(source, documentLanguage: "zh-Hant", prepareSpeech: true)
         XCTAssertTrue(output.speech!.segments.map(\.text).joined().contains("略過程式碼區塊"))
     }
+    func testNestedBlocksPreserveOrderAndSpeechOptions() async throws {
+        let source = "- [ ] Parent\n\n  ```swift\n  secretCode()\n  ```\n\n  - Child\n\n  After child.\n\n  | Item | State |\n  | --- | --- |\n  | Alpha | Ready |\n"
+        let output = try await MarkdownRenderer.shared.render(source, prepareSpeech: true)
+        let segments = output.speech!.segments.map(\.text)
+        let spoken = segments.joined(separator: " ")
+        XCTAssertEqual(segments.first, "Unchecked: Parent")
+        XCTAssertFalse(spoken.contains("secretCode"))
+        XCTAssertTrue(spoken.contains("Code block omitted"))
+        XCTAssertTrue(segments.contains("Item: Alpha; State: Ready"), spoken)
+        XCTAssertLessThan(try XCTUnwrap(spoken.range(of: "Child")?.lowerBound), try XCTUnwrap(spoken.range(of: "After child")?.lowerBound))
+        let included = try await MarkdownRenderer.shared.render(source, prepareSpeech: true, speechOptions: SpeechOptions(includeCode: true))
+        XCTAssertTrue(included.speech!.segments.map(\.text).joined().contains("secretCode()"))
+    }
 
 }

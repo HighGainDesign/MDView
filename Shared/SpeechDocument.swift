@@ -30,6 +30,7 @@ struct SpeechDocument: Equatable, Sendable {
     let language: String?
     let fingerprint: String
     var elements: [String: SpeechElementMap] = [:]
+    var options = SpeechOptions()
 
     func section(at segment: Int) -> SpeechSection? {
         sections.last { $0.firstSegment <= segment }
@@ -58,7 +59,7 @@ enum SpeechDocumentBuilder {
         func build(_ document: Document, source: String) throws -> SpeechDocument {
             for child in document.body()?.children().array() ?? [] { try walk(child) }
             let fingerprint = SHA256.hash(data: Data(source.utf8)).map { String(format: "%02x", $0) }.joined()
-            return SpeechDocument(segments: segments, sections: sections, language: language, fingerprint: fingerprint, elements: elementMaps)
+            return SpeechDocument(segments: segments, sections: sections, language: language, fingerprint: fingerprint, elements: elementMaps, options: options)
         }
 
         func walk(_ element: Element) throws {
@@ -76,24 +77,7 @@ enum SpeechDocumentBuilder {
                 let text = options.includeCode ? try parts(element) : [Part(text: label("code"))]
                 try append(text, element: element, kind: .code)
             } else if tag == "li" {
-                var text = try parts(element, skipLists: true)
-                if let task = try element.select("input[type=checkbox]").array().first(where: { input in
-                    var parent = input.parent()
-                    while let current = parent {
-                        if current.tagName() == "li" { return current === element }
-                        parent = current.parent()
-                    }
-                    return false
-                }) {
-                    text.insert(Part(text: label(task.hasAttr("checked") ? "checked" : "unchecked") + ": "), at: 0)
-                }
-                try append(text, element: element, kind: .listItem)
-                // Only lists directly owned by this item; deeper items visit theirs.
-                for list in try element.select("ul,ol").array() {
-                    var parent = list.parent()
-                    while let current = parent, current !== element, !["ul", "ol", "li"].contains(current.tagName()) { parent = current.parent() }
-                    if parent === element { for child in list.children().array() { try walk(child) } }
-                }
+                try listItem(element)
             } else if ["p", "dt", "dd", "figcaption", "summary"].contains(tag) {
                 try append(parts(element), element: element, kind: .paragraph)
             } else if tag == "img" {
@@ -101,6 +85,44 @@ enum SpeechDocumentBuilder {
             } else {
                 for child in element.children().array() { try walk(child) }
             }
+        }
+
+        private func listItem(_ element: Element) throws {
+            let task = try element.select("input[type=checkbox]").array().first { input in
+                var parent = input.parent()
+                while let current = parent {
+                    if current.tagName() == "li" { return current === element }
+                    parent = current.parent()
+                }
+                return false
+            }
+            var prefix = task.map { Part(text: label($0.hasAttr("checked") ? "checked" : "unchecked") + ": ") }
+            var pending: [Part] = []
+            func emit(_ value: [Part], on target: Element) throws {
+                var value = value
+                if let first = prefix { value.insert(first, at: 0); prefix = nil }
+                try append(value, element: target, kind: .listItem)
+            }
+            func flush() throws {
+                guard prefix != nil || !pending.isEmpty else { return }
+                try emit(pending, on: element); pending = []
+            }
+            let blocks: Set<String> = ["p", "ul", "ol", "pre", "table", "blockquote", "div", "section", "figure", "dl", "h1", "h2", "h3", "h4", "h5", "h6"]
+            for child in element.getChildNodes() {
+                if let block = child as? Element, blocks.contains(block.tagName()) {
+                    // Loose-list paragraphs own their inline text and task cue.
+                    // Other blocks retain the same semantic handlers as the body.
+                    if block.tagName() == "p" {
+                        if pending.contains(where: { !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) { try flush() }
+                        else { pending.removeAll() }
+                        try emit(parts(block), on: block)
+                    } else {
+                        try flush()
+                        try walk(block)
+                    }
+                } else { pending += try parts(child) }
+            }
+            try flush()
         }
 
         func table(_ table: Element) throws {
@@ -174,12 +196,19 @@ enum SpeechDocumentBuilder {
                 pendingSpace = part.text.last?.isWhitespace == true
             }
             guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-            let elementID = "speech-\(nextElement)"; nextElement += 1
+            let existingID = try element.attr("data-mdview-speech")
+            let elementID: String
+            if existingID.isEmpty { elementID = "speech-\(nextElement)"; nextElement += 1 }
+            else { elementID = existingID }
             try element.attr("data-mdview-speech", elementID)
-            elementMaps[elementID] = SpeechElementMap(sourceLength: sourceLength, anchors: anchors)
-            var offset = 0
+            let previous = existingID.isEmpty ? [] : segments.filter { $0.elementID == elementID }
+            var offset = previous.reduce(0) { $0 + $1.text.utf16.count }
+            anchors = anchors.map { SpeechAnchor(sourceRange: $0.sourceRange, sourceText: $0.sourceText,
+                                                  spokenOffset: $0.spokenOffset + offset, literal: $0.literal) }
+            elementMaps[elementID] = SpeechElementMap(sourceLength: sourceLength,
+                anchors: (elementMaps[elementID]?.anchors ?? []) + anchors)
             for (index, chunk) in Self.chunks(text).enumerated() {
-                segments.append(SpeechSegment(id: "\(elementID)-\(index)", elementID: elementID,
+                segments.append(SpeechSegment(id: "\(elementID)-\(previous.count + index)", elementID: elementID,
                     text: chunk, sectionID: sectionID, kind: kind, elementOffset: offset))
                 offset += chunk.utf16.count
             }

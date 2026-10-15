@@ -47,6 +47,7 @@ final class ReaderSpeech {
               let output = reader.rendered, output.taskSource == reader.source, let document = output.speech else {
             message = String(localized: "Wait for the document to finish loading, then try Read Aloud again."); return
         }
+        if prepareOptionsIfNeeded({ $0.start(at: index, offset: offset) }) { return }
         if session.isActive { session.stop() }
         playbackURL = reader.isStreamingPreview ? nil : reader.fileURL
         isHolding = true
@@ -57,17 +58,20 @@ final class ReaderSpeech {
         session.play(document, from: index, offset: offset)
     }
     func requestStart(_ mode: StartMode) {
+        latestTask?.cancel(); latestTask = nil
         if mode == .beginning { start(); return }
         showPlayer = true; message = nil
         guard let reader, !reader.isRendering, let document = reader.rendered?.speech else {
             message = String(localized: "Wait for the document to finish loading, then try Read Aloud again."); return
         }
+        if prepareOptionsIfNeeded({ $0.requestStart(mode) }) { return }
         startRequest = StartRequest(id: UUID(), mode: mode, fingerprint: document.fingerprint)
     }
     func completeStart(_ request: StartRequest, elementID: String?, offset: Int) {
         guard startRequest?.id == request.id, let reader,
               let document = reader.rendered?.speech, document.fingerprint == request.fingerprint else { return }
         startRequest = nil
+        if document.options != preferences.options { requestStart(request.mode); return }
         guard let elementID else {
             message = String(localized: "Select text in the document to choose where reading starts."); return
         }
@@ -79,6 +83,7 @@ final class ReaderSpeech {
     }
 
     func resumeSaved() {
+        if prepareOptionsIfNeeded({ $0.resumeSaved() }) { return }
         if let bookmark { start(at: bookmark.index, offset: bookmark.offset) }
         else { start() }
     }
@@ -119,6 +124,26 @@ final class ReaderSpeech {
     }
     func setFollowReading(_ follow: Bool) { preferences.followReading = follow; session.followReading = follow }
     func clearHistory() { progress.clear(); preferences.historyRevision += 1 }
+
+    /// Content choices affect preparation, never an utterance already in flight.
+    /// Queue the original intent after a fresh render; Stop/close cancels it.
+    private func prepareOptionsIfNeeded(_ resume: @escaping @MainActor (ReaderSpeech) -> Void) -> Bool {
+        guard let reader, let document = reader.rendered?.speech, document.options != preferences.options else { return false }
+        latestTask?.cancel(); startRequest = nil
+        if session.isActive { session.stop() }
+        let source = reader.source
+        reader.render()
+        latestTask = Task { [weak self, weak reader] in
+            guard let self, let reader else { return }
+            while reader.isRendering {
+                do { try await Task.sleep(for: .milliseconds(10)) } catch { return }
+            }
+            guard !Task.isCancelled, reader.source == source,
+                  reader.rendered?.speech?.options == preferences.options else { return }
+            resume(self)
+        }
+        return true
+    }
 
     private func didProgress() {
         reader?.announcements.suppressRoutine = session.isActive

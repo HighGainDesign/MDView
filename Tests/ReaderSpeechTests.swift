@@ -150,6 +150,36 @@ final class ReaderSpeechTests: XCTestCase {
         XCTAssertTrue(reader.showChecklistConfirmation)
     }
 
+    func testChangedSpeechOptionsApplyWhenRestartingAnOpenDocument() async throws {
+        let reader = makeReader(); defer { reader.stop() }
+        reader.source = "[Project](https://example.org)\n\n```swift\nlet answer = 42\n```\n"
+        reader.render(); try await settle(reader)
+        reader.speech.start(); reader.speech.session.pause()
+        let original = reader.speech.session.document
+        reader.speech.preferences.options = SpeechOptions(includeCode: true, includeLinkDestinations: true)
+        XCTAssertEqual(reader.speech.session.document, original, "Settings must not replace paused speech")
+        reader.speech.requestStart(.beginning)
+        for _ in 0..<300 {
+            if reader.speech.session.document?.segments.contains(where: { $0.text.contains("let answer") }) == true { break }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        let spoken = reader.speech.session.document?.segments.map(\.text).joined(separator: " ") ?? ""
+        XCTAssertTrue(spoken.contains("let answer = 42"))
+        XCTAssertTrue(spoken.contains("https://example.org"))
+        XCTAssertEqual(reader.speech.session.status, .playing)
+    }
+
+    func testStopCancelsPlaybackWaitingForChangedContentOptions() async throws {
+        let reader = makeReader(); defer { reader.stop() }
+        reader.source = "Text.\n\n```\ncode\n```\n"; reader.render(); try await settle(reader)
+        reader.speech.preferences.options = SpeechOptions(includeCode: true)
+        reader.speech.start(); reader.speech.stop()
+        try await settle(reader)
+        try await Task.sleep(for: .milliseconds(50))
+        XCTAssertEqual(reader.speech.session.status, .idle)
+        XCTAssertFalse(reader.playbackHolding)
+    }
+
     private func findWeb(_ view: NSView) -> WKWebView? {
         if let web = view as? WKWebView { return web }
         return view.subviews.lazy.compactMap { self.findWeb($0) }.first

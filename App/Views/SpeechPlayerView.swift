@@ -56,7 +56,7 @@ struct SpeechPlayerView: View {
     private var transport: some View {
         HStack(spacing: 8) {
             Button { speech.session.previousSection() } label: { Image(systemName: "backward.end.fill").frame(width: 24, height: 22) }
-                .disabled(speech.session.document == nil).accessibilityLabel("Previous section").help("Previous section")
+                .disabled(!speech.session.isActive).accessibilityLabel("Previous section").help("Previous section")
             Button { speech.togglePlayback() } label: {
                 Label(speech.session.status == .playing ? "Pause" : "Play", systemImage: speech.session.status == .playing ? "pause.fill" : "play.fill")
                     .frame(minWidth: 62)
@@ -64,7 +64,7 @@ struct SpeechPlayerView: View {
                 .disabled(reader.isRendering || reader.checklistSaving || reader.showChecklistConfirmation)
                 .accessibilityLabel(speech.session.status == .playing ? "Pause reading" : "Play reading")
             Button { speech.session.nextSection() } label: { Image(systemName: "forward.end.fill").frame(width: 24, height: 22) }
-                .disabled(speech.session.document == nil).accessibilityLabel("Next section").help("Next section")
+                .disabled(!speech.session.isActive).accessibilityLabel("Next section").help("Next section")
             Button("Stop", systemImage: "stop.fill") { speech.stop() }.disabled(!speech.session.isActive)
         }.buttonStyle(.bordered).fixedSize()
     }

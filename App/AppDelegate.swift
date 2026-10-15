@@ -174,7 +174,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
             return reader?.rendered?.speech?.segments.isEmpty == false && reader?.isRendering == false && reader?.checklistSaving == false && reader?.showChecklistConfirmation == false
         }
         if menuItem.action == #selector(stopSpeech(_:)) { return reader?.existingSpeech?.session.isActive == true }
-        if menuItem.action == #selector(nextSpeechSection(_:)) || menuItem.action == #selector(previousSpeechSection(_:)) { return reader?.existingSpeech?.session.document != nil }
+        if menuItem.action == #selector(nextSpeechSection(_:)) || menuItem.action == #selector(previousSpeechSection(_:)) { return reader?.existingSpeech?.session.isActive == true }
         if menuItem.action == #selector(focusDocument(_:)) { return reader?.rendered != nil }
         if menuItem.action == #selector(returnToNavigation(_:)) { return reader?.navigationReturnTarget != nil }
         if menuItem.action == #selector(nextUncheckedTask(_:)) || menuItem.action == #selector(previousUncheckedTask(_:)) {

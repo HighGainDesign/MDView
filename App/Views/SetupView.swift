@@ -21,10 +21,9 @@ struct SetupView: View {
                     IntegrationHeading(title: String(localized: "Finder Quick Look"), symbol: "doc.viewfinder",
                                        subtitle: String(localized: "Preview files without opening a document window."))
                     QuickLookInstructions()
-                    HStack {
-                        Button("Open Extension Settings…") { session.openQuickLookSettings() }
-                        Spacer()
-                        Text("Enable once").font(.caption).foregroundStyle(.secondary)
+                    ViewThatFits(in: .horizontal) {
+                        HStack { quickLookAction.fixedSize(); Spacer(minLength: 12); quickLookNote.fixedSize() }
+                        VStack(alignment: .leading, spacing: 8) { quickLookAction; quickLookNote }
                     }
                 }.padding(10).frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -32,12 +31,9 @@ struct SetupView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     IntegrationHeading(title: String(localized: "Drafts"), symbol: "square.and.pencil",
                                        subtitle: String(localized: "Add Preview in MDView to view a draft without changing it."))
-                    HStack {
-                        Button("Install Drafts Action…") { Task { await session.installDraftsAction() } }
-                            .disabled(!session.draftsAvailable || session.installingDrafts)
-                        Spacer()
-                        Text(session.draftsAvailable ? "Drafts detected" : "Drafts isn’t installed")
-                            .font(.caption).foregroundStyle(.secondary)
+                    ViewThatFits(in: .horizontal) {
+                        HStack { draftsAction.fixedSize(); Spacer(minLength: 12); draftsNote.fixedSize() }
+                        VStack(alignment: .leading, spacing: 8) { draftsAction; draftsNote }
                     }
                     if let status = session.draftsStatus {
                         Text(status).font(.callout).foregroundStyle(.secondary)
@@ -58,6 +54,20 @@ struct SetupView: View {
             }.padding(20).background(.bar)
         }
         .frame(minWidth: 520, minHeight: 440)
+    }
+    private var quickLookAction: some View {
+        Button { session.openQuickLookSettings() } label: {
+            Text("Open Extension Settings…").fixedSize(horizontal: false, vertical: true)
+        }
+    }
+    private var quickLookNote: some View { Text("Enable once").font(.caption).foregroundStyle(.secondary) }
+    private var draftsAction: some View {
+        Button { Task { await session.installDraftsAction() } } label: {
+            Text("Install Drafts Action…").fixedSize(horizontal: false, vertical: true)
+        }.disabled(!session.draftsAvailable || session.installingDrafts)
+    }
+    private var draftsNote: some View {
+        Text(session.draftsAvailable ? "Drafts detected" : "Drafts isn’t installed").font(.caption).foregroundStyle(.secondary)
     }
     private var suppression: some View { Toggle("Don’t show again", isOn: $session.dontShowAgain).toggleStyle(.checkbox) }
     private var doneButton: some View {
