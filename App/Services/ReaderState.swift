@@ -32,7 +32,7 @@ final class ReaderState {
     var fileURL: URL? {
         didSet {
             guard fileURL != oldValue else { return }
-            speechModel?.close()
+            speechModel?.close(discardHold: true)
             externalFileRevision += 1
             cancelChecklistConfirmation()
             checklistMode = false
@@ -510,7 +510,7 @@ final class ReaderState {
     func changeZoom(by amount: Double) { zoom = min(2.0, max(0.6, zoom + amount)) }
 
     func stop() {
-        speechModel?.close()
+        speechModel?.close(discardHold: true)
         cancelChecklistConfirmation()
         checklistMode = false
         pendingFileSource = nil; pendingStreamName = nil

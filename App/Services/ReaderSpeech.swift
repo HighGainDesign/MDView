@@ -90,7 +90,12 @@ final class ReaderSpeech {
         }
     }
     func stop() { latestTask?.cancel(); latestTask = nil; startRequest = nil; session.stop() }
-    func close() { stop(); isHolding = false; showPlayer = false }
+    func close(discardHold: Bool = false) {
+        stop(); showPlayer = false
+        // Closing playback controls must not hide a pending-version decision.
+        // Only a document closing/switching may discard its display hold.
+        if discardHold { isHolding = false }
+    }
     func showLatest(read: Bool = false) {
         let oldSection = session.document?.section(at: session.currentIndex)?.id
         stop(); isHolding = false

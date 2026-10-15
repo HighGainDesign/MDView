@@ -25,6 +25,22 @@ final class ReaderSpeechTests: XCTestCase {
         XCTAssertFalse(reader.hasPendingFileUpdate)
     }
 
+    func testClosingPlayerKeepsPendingVersionVisibleUntilExplicitShowLatest() async throws {
+        let reader = makeReader(); defer { reader.stop() }
+        reader.fileURL = URL(fileURLWithPath: "/tmp/player-close-held.md")
+        reader.source = "Original text."; reader.render(); try await settle(reader)
+        reader.speech.start(); reader.receiveFileUpdate("New text.")
+        reader.speech.close()
+        XCTAssertFalse(reader.speech.showPlayer)
+        XCTAssertTrue(reader.playbackHolding, "The Show Latest choice must remain visible when the player closes")
+        reader.receiveFileUpdate("Newest text.")
+        XCTAssertEqual(reader.source, "Original text.")
+        reader.speech.showLatest(); try await settle(reader)
+        XCTAssertEqual(reader.source, "Newest text.")
+        reader.speech.start(); reader.receiveFileUpdate("Another edit."); reader.stop()
+        XCTAssertFalse(reader.playbackHolding, "Closing the document releases its hold")
+    }
+
     func testManualPauseRemainsIndependentFromPlaybackHold() async throws {
         let reader = makeReader(); defer { reader.stop() }
         reader.fileURL = URL(fileURLWithPath: "/tmp/manual-pause-speech.md")
