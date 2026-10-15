@@ -106,9 +106,16 @@ final class ReaderLayoutTests: XCTestCase {
         let settings = NSHostingController(rootView: SettingsView().environment(\.layoutDirection, .rightToLeft))
         let settingsWindow = NSWindow(contentViewController: settings)
         settingsWindow.isReleasedWhenClosed = false
+        // Match the app's Settings window setup rather than inspecting the
+        // hosting controller's transient one-point initial view on CI.
+        settingsWindow.setContentSize(NSSize(width: 600, height: 680))
         settingsWindow.orderFront(nil)
         defer { settingsWindow.close() }
-        await Task.yield(); settings.view.layoutSubtreeIfNeeded()
+        for _ in 0..<100 {
+            settings.view.layoutSubtreeIfNeeded()
+            if settings.view.bounds.width >= 590, settings.view.bounds.height >= 670 { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
         XCTAssertGreaterThan(settings.view.bounds.width, 590)
         try capture(settings.view, name: expanded ? "expanded-settings" : "normal-settings")
     }

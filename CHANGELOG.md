@@ -2,9 +2,9 @@
 
 ## 1.3.0 — 2026-10-14
 
-- Pause file updates and keep your place when content changes.
-- Jump between headings, unchecked tasks and unreviewed changes with the keyboard.
-- Hear review details and useful status announcements in the active reader.
+- Keep your place during updates; pause and resume saved files.
+- Navigate headings, tasks and changes with keyboard shortcuts.
+- Improve VoiceOver focus, announcements and change descriptions.
 - Add document language detection and localization foundations.
 
 ## 1.2.2 — 2026-10-14

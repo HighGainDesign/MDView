@@ -143,16 +143,13 @@ For very large documents, review falls back to comparison by section position an
 
 ## Reading and accessibility
 
-**New in 1.3.**
-Saved-file updates preserve surviving reading blocks and can be paused from
-**Reading options → Pause Updates** or **View → Pause Updates**. A notice shows
-when a newer version is waiting. Resume applies the newest saved contents.
-Checkmarks cannot be saved against a pending version.
+**New in 1.3.** Keep your place during file updates. Use **Reading options →
+Pause Updates** (or the View menu) to hold the current version; Resume catches up
+to the newest save. A waiting version disables checklist saves.
 
 Outline and **Show in Document** move focus to their destination. Review describes
-checkbox states, link destinations and image alternatives in **Before** and **After**.
-The active reader announces errors, missing search results and review progress;
-rapid updates are combined instead of reading the whole document aloud.
+checkbox states, link destinations and image alternatives. The active reader
+announces errors, missing search results and review progress; rapid updates are combined.
 
 | View command | Shortcut |
 | --- | --- |
@@ -162,11 +159,10 @@ rapid updates are combined instead of reading the whole document aloud.
 | Next/Previous Unchecked Task | ⌥⌘J / ⇧⌥⌘J |
 | Next/Previous Unreviewed Change | ⌥⌘] / ⌥⌘[ |
 
-**Reading options → Document Language** overrides conservative on-device language
-detection for the current window. Unknown language is left unspecified. This is
-independent of interface language and does not translate text or add Read Aloud.
-Interface strings use String Catalogs; English is the only shipping translation.
-Accessibility testing does not yet establish broad VoiceOver support.
+**Reading options → Document Language** overrides on-device detection for the current
+window. It does not translate text or add Read Aloud. Unknown language stays
+unspecified; the interface currently ships in English. Broader VoiceOver feedback
+is welcome; these improvements do not establish full accessibility support.
 
 ## Create a signed installer
 

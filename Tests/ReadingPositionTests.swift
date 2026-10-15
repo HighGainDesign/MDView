@@ -317,7 +317,7 @@ final class ReadingPositionTests: XCTestCase {
 
     private func waitForHeading(_ id: String, in web: WKWebView) async throws {
         for _ in 0..<200 {
-            if let ready = try? await web.callAsyncJavaScript("return !!document.getElementById(id);",arguments:["id":id],in:nil,contentWorld:MarkdownWebView.Coordinator.taskWorld) as? Bool, ready { return }
+            if let ready = try? await web.callAsyncJavaScript("return !!document.getElementById(id) && Array.from(document.querySelectorAll('input[data-mdview-task]')).every(input => !input.disabled);",arguments:["id":id],in:nil,contentWorld:MarkdownWebView.Coordinator.taskWorld) as? Bool, ready { return }
             try await Task.sleep(for: .milliseconds(20))
         }
         XCTFail("Updated heading did not appear")
