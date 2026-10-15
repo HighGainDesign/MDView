@@ -3,8 +3,9 @@ import SwiftUI
 struct ChangesView: View {
     let reader: ReaderState
     let dismiss: () -> Void
-    @FocusState private var reviewFocused: Bool
-    @AccessibilityFocusState private var accessibleReviewFocused: Bool
+    private enum ReviewFocus: Hashable { case current, done }
+    @FocusState private var reviewFocused: ReviewFocus?
+    @AccessibilityFocusState private var accessibleReviewFocused: ReviewFocus?
     @State private var reviewActionIntent: Int?
 
     var body: some View {
@@ -42,11 +43,12 @@ struct ChangesView: View {
                 }.frame(maxHeight: .infinity)
                 Divider()
                 VStack(spacing: 8) {
-                    Button { reviewActionIntent = reader.focusIntentGeneration; reader.markCurrentChangeReviewed() } label: {
+                    Button(action: markCurrentReviewed) {
                         Text("Mark This Reviewed").multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity)
                     }
                         .buttonStyle(.borderedProminent)
-                        .focusable().focused($reviewFocused).accessibilityFocused($accessibleReviewFocused)
+                        .focusable().focused($reviewFocused, equals: .current).accessibilityFocused($accessibleReviewFocused, equals: .current)
+                        .onKeyPress(.space, phases: .down) { _ in markCurrentReviewed(); return .handled }
                         .help("Clear this highlight and advance to the next change")
                     Button { reviewActionIntent = reader.focusIntentGeneration; reader.markReviewed() } label: {
                         Text("Mark All Reviewed").multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity)
@@ -59,7 +61,8 @@ struct ChangesView: View {
                     .font(.title3).padding(.vertical, 6)
                 Text("New saved changes will appear here automatically. Reviewing changes never modifies the file.")
                     .foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-                HStack { Spacer(); Button("Done", action: dismiss).focusable().focused($reviewFocused).accessibilityFocused($accessibleReviewFocused) }
+                HStack { Spacer(); Button("Done", action: dismiss).focusable().focused($reviewFocused, equals: .done).accessibilityFocused($accessibleReviewFocused, equals: .done)
+                    .onKeyPress(.space, phases: .down) { _ in dismiss(); return .handled } }
             }
             if let refreshed = reader.lastRefreshed {
                 Text("Last refreshed \(refreshed.formatted(date: .omitted, time: .standard))")
@@ -74,17 +77,23 @@ struct ChangesView: View {
             guard !reader.isRendering, let intent = reviewActionIntent else { return }
             reviewActionIntent = nil
             guard intent == reader.focusIntentGeneration else { return }
-            reviewFocused = true
-            if reader.announcements.isEligible() { accessibleReviewFocused = true }
+            reviewFocused = reader.selectedChange == nil ? .done : .current
+            if reader.announcements.isEligible() { accessibleReviewFocused = reader.selectedChange == nil ? .done : .current }
         }
         .task(id: reader.returnFocusGeneration) {
             guard reader.returnFocusGeneration > 0, reader.navigationReturnTarget == .review else { return }
             let intent = reader.focusIntentGeneration
             await Task.yield()
             guard !Task.isCancelled, intent == reader.focusIntentGeneration else { return }
-            reviewFocused = true
-            if reader.announcements.isEligible() { accessibleReviewFocused = true }
+            reviewFocused = reader.selectedChange == nil ? .done : .current
+            if reader.announcements.isEligible() { accessibleReviewFocused = reader.selectedChange == nil ? .done : .current }
         }
+    }
+
+    private func markCurrentReviewed() {
+        guard !reader.isRendering else { return }
+        reviewActionIntent = reader.focusIntentGeneration
+        reader.markCurrentChangeReviewed()
     }
 
     private func changeDetail(_ change: DocumentChange) -> some View {

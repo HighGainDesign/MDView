@@ -82,6 +82,7 @@ struct ReaderToolbar: View {
                 .accessibilityValue("\(reader.changes.count) unreviewed changes, panel \(reader.showChanges ? String(localized: "shown") : String(localized: "hidden"))")
                 .tint(reader.showChanges ? .accentColor : .secondary)
                 .focusable().focused($reviewFocused)
+                .onKeyPress(.space, phases: .down) { _ in reader.showChanges.toggle(); return .handled }
                 .fixedSize()
                 toolSeparator
             }

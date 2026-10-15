@@ -51,6 +51,29 @@ final class LayoutPolishTests: XCTestCase {
         }
     }
 
+    func testAllSettingsTabsRemainAvailableBeforeSpeechIsSelected() async throws {
+        let original = SettingsNavigation.shared.page
+        SettingsNavigation.shared.page = .reading
+        defer { SettingsNavigation.shared.page = original }
+        let host = NSHostingController(rootView: SettingsView())
+        let window = NSWindow(contentViewController: host)
+        window.isReleasedWhenClosed = false; window.setContentSize(NSSize(width: 620, height: 680)); window.orderFront(nil)
+        defer { window.close() }
+        func find(_ view: NSView) -> NSTabView? {
+            if let tabs = view as? NSTabView { return tabs }
+            for child in view.subviews { if let tabs = find(child) { return tabs } }
+            return nil
+        }
+        var tabs: NSTabView?
+        for _ in 0..<100 {
+            host.view.layoutSubtreeIfNeeded(); tabs = find(host.view)
+            if tabs != nil { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        XCTAssertEqual(try XCTUnwrap(tabs).numberOfTabViewItems, 4,
+                       "Read Aloud must be a selectable tab before it has ever been opened")
+    }
+
     private func assertScrollFits(_ view: NSView) throws {
         var scrolls: [NSScrollView] = []
         func visit(_ node: NSView) {

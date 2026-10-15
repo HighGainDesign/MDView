@@ -17,7 +17,7 @@ struct SettingsView: View {
     var body: some View {
         TabView(selection: $navigation.page) {
             reading.tabItem { Label("Reading", systemImage: "book") }.tag(SettingsNavigation.Page.reading)
-            Group {
+            ZStack {
                 if navigation.page == .speech { SpeechSettingsView() }
             }.tabItem { Label("Read Aloud", systemImage: "headphones") }.tag(SettingsNavigation.Page.speech)
             content.tabItem { Label("Content", systemImage: "doc.richtext") }.tag(SettingsNavigation.Page.content)
