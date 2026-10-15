@@ -10,10 +10,12 @@ struct ChangesView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text("Review Changes").font(.headline)
-                    .accessibilityAddTraits(.isHeader)
-                Spacer()
-                Text("\(reader.changes.count) remaining").foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Review Changes").font(.headline).fixedSize(horizontal: false, vertical: true)
+                        .accessibilityAddTraits(.isHeader)
+                    Text("\(reader.changes.count) remaining").font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 8)
                 Button(action: dismiss) { Image(systemName: "xmark") }
                     .buttonStyle(.borderless)
                     .accessibilityLabel("Close review")
@@ -26,7 +28,7 @@ struct ChangesView: View {
                         Image(systemName: "chevron.left")
                     }.accessibilityLabel("Previous change").help("Previous change")
                     Text("Change \(max(0, reader.currentChangeIndex) + 1) of \(reader.changes.count)")
-                        .monospacedDigit().frame(maxWidth: .infinity)
+                        .monospacedDigit().multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity)
                     Button { reader.jumpToChange() } label: {
                         Image(systemName: "chevron.right")
                     }.accessibilityLabel("Next change").help("Next change")
@@ -40,11 +42,15 @@ struct ChangesView: View {
                 }.frame(maxHeight: .infinity)
                 Divider()
                 VStack(spacing: 8) {
-                    Button("Mark This Reviewed") { reviewActionIntent = reader.focusIntentGeneration; reader.markCurrentChangeReviewed() }
+                    Button { reviewActionIntent = reader.focusIntentGeneration; reader.markCurrentChangeReviewed() } label: {
+                        Text("Mark This Reviewed").multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity)
+                    }
                         .buttonStyle(.borderedProminent)
                         .focusable().focused($reviewFocused).accessibilityFocused($accessibleReviewFocused)
                         .help("Clear this highlight and advance to the next change")
-                    Button("Mark All Reviewed") { reviewActionIntent = reader.focusIntentGeneration; reader.markReviewed() }
+                    Button { reviewActionIntent = reader.focusIntentGeneration; reader.markReviewed() } label: {
+                        Text("Mark All Reviewed").multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity)
+                    }
                         .help("Acknowledge every remaining change in this document")
                 }.disabled(reader.isRendering)
                     .frame(maxWidth: .infinity)
@@ -83,14 +89,13 @@ struct ChangesView: View {
 
     private func changeDetail(_ change: DocumentChange) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Label(change.kind.localizedTitle, systemImage: change.kind == .removed ? "minus.circle" : (change.kind == .added ? "plus.circle" : "pencil.circle"))
-                    .font(.callout.weight(.semibold))
-                    .foregroundStyle(change.kind == .removed ? .red : (change.kind == .added ? .green : .orange))
-                Spacer()
-                if let target = change.targetID {
-                    Button("Show in Document") { reader.navigate(to: target, returnTo: .review) }
+            ViewThatFits(in: .horizontal) {
+                HStack {
+                    kindLabel(change).fixedSize()
+                    Spacer(minLength: 8)
+                    showInDocument(change).fixedSize()
                 }
+                VStack(alignment: .leading, spacing: 8) { kindLabel(change); showInDocument(change) }
             }
             if !change.beforeAccessibleText.isEmpty {
                 Text("Before").font(.caption.weight(.medium)).foregroundStyle(.secondary)
@@ -109,6 +114,18 @@ struct ChangesView: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
         }.frame(maxWidth: .infinity, alignment: .leading)
+    }
+    private func kindLabel(_ change: DocumentChange) -> some View {
+        Label(change.kind.localizedTitle, systemImage: change.kind == .removed ? "minus.circle" : (change.kind == .added ? "plus.circle" : "pencil.circle"))
+            .font(.callout.weight(.semibold))
+            .foregroundStyle(change.kind == .removed ? .red : (change.kind == .added ? .green : .orange))
+    }
+    @ViewBuilder private func showInDocument(_ change: DocumentChange) -> some View {
+        if let target = change.targetID {
+            Button { reader.navigate(to: target, returnTo: .review) } label: {
+                Text("Show in Document").fixedSize(horizontal: false, vertical: true)
+            }
+        }
     }
 
 }

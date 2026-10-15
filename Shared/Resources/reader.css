@@ -54,3 +54,6 @@ pre .mdview-word-change { padding: 0; }
 
 .mdview-speaking { outline: 2px solid var(--link); outline-offset: 4px; }
 @media (prefers-contrast: more) { .mdview-speaking { outline-width: 3px; } }
+
+a:focus-visible, [tabindex="-1"]:focus-visible { outline: 2px solid var(--link); outline-offset: 3px; border-radius: 2px; }
+@media (prefers-contrast: more) { th, td, blockquote { border-color: var(--ink); } a { text-decoration-thickness: 2px; } }

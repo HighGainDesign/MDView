@@ -35,7 +35,7 @@ struct ReaderView: View {
                 }.font(.callout).padding(12).background(.bar)
                 Divider()
             }
-            if reader.fileUpdatesPaused {
+            if reader.fileUpdatesPaused && !reader.playbackHolding {
                 HStack(spacing: 10) {
                     Image(systemName: "pause.circle")
                     Text(reader.hasPendingFileUpdate ? "Updates paused. A newer version is waiting." : "File updates paused.")
@@ -45,7 +45,7 @@ struct ReaderView: View {
                 }.font(.callout).padding(12).background(.quaternary)
                 Divider()
             }
-            if reader.checklistMode {
+            if reader.checklistMode && !reader.playbackHolding {
                 HStack(spacing: 10) {
                     Image(systemName: "checklist")
                     Text(checklistStatus)
@@ -93,7 +93,7 @@ struct ReaderView: View {
                     }
                 }
                 .frame(width: geometry.size.width, height: geometry.size.height)
-                .background(ReaderWindowMinimumSize(minimumHeight: reader.showChanges ? (beside ? 420 : 620) : 300))
+                .background(ReaderWindowMinimumSize(minimumHeight: (reader.showChanges ? (beside ? 420 : 620) : 300) + (reader.existingSpeech?.showPlayer == true ? 80 : 0)))
             }
             Divider()
             if let speech = reader.existingSpeech, speech.showPlayer {

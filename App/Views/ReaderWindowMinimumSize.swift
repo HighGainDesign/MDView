@@ -23,8 +23,11 @@ struct ReaderWindowMinimumSize: NSViewRepresentable {
 
         func applyMinimum() {
             guard let window else { return }
-            window.contentMinSize = NSSize(width: 480, height: minimumHeight)
-            let growth = minimumHeight - window.contentLayoutRect.height
+            let decoration = max(0, window.frame.height - window.contentLayoutRect.height)
+            let available = window.screen.map { $0.visibleFrame.height - decoration } ?? minimumHeight
+            let height = min(minimumHeight, available)
+            window.contentMinSize = NSSize(width: 480, height: height)
+            let growth = height - window.contentLayoutRect.height
             guard growth > 1 else { return }
             var frame = window.frame
             frame.size.height += growth

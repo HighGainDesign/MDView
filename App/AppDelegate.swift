@@ -71,8 +71,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
                                    liveStreaming: { [weak self] in self?.showLiveStreamingPreview() })
             let window = NSWindow(contentViewController: NSHostingController(rootView: view))
             window.title = String(localized: "MDView")
-            window.styleMask = [.titled, .closable, .miniaturizable]
-            window.setContentSize(NSSize(width: 520, height: 370))
+            window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
+            window.contentMinSize = NSSize(width: 480, height: 380)
+            window.setContentSize(NSSize(width: 520, height: 440))
             window.center()
             welcome = NSWindowController(window: window)
         }

@@ -5,7 +5,9 @@ struct SetupView: View {
     let done: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
             HStack(spacing: 16) {
                 Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 56, height: 56)
                     .accessibilityHidden(true)
@@ -45,15 +47,20 @@ struct SetupView: View {
             }
             Text("You can return to these options in MDView Settings.")
                 .font(.callout).foregroundStyle(.secondary)
-            Spacer(minLength: 0)
-            Divider()
-            HStack {
-                Toggle("Don’t show again", isOn: $session.dontShowAgain).toggleStyle(.checkbox)
-                Spacer()
-                Button("Done", action: done).buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction)
+                    Text("Read Aloud controls are in every document’s toolbar.")
+                        .font(.callout).foregroundStyle(.secondary)
+                }.padding(24).frame(maxWidth: .infinity, alignment: .leading)
             }
+            Divider()
+            ViewThatFits(in: .horizontal) {
+                HStack { suppression; Spacer(minLength: 16); doneButton }
+                VStack(alignment: .leading, spacing: 12) { suppression; HStack { Spacer(); doneButton } }
+            }.padding(20).background(.bar)
         }
-        .padding(28)
-        .frame(width: 620)
+        .frame(minWidth: 520, minHeight: 440)
+    }
+    private var suppression: some View { Toggle("Don’t show again", isOn: $session.dontShowAgain).toggleStyle(.checkbox) }
+    private var doneButton: some View {
+        Button("Done", action: done).buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction)
     }
 }

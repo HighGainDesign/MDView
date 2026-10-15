@@ -9,6 +9,7 @@ struct ReaderToolbar: View {
         ViewThatFits(in: .horizontal) {
             controls(compact: false)
             controls(compact: true)
+            controls(compact: true, minimal: true)
         }
         .buttonStyle(.bordered)
         .menuStyle(.borderedButton)
@@ -18,7 +19,7 @@ struct ReaderToolbar: View {
         .onChange(of: reader.showChanges) { if !reader.showChanges { reviewFocused = true } }
     }
 
-    private func controls(compact: Bool) -> some View {
+    private func controls(compact: Bool, minimal: Bool = false) -> some View {
         HStack(spacing: 8) {
             Button { reader.showOutline.toggle() } label: {
                 Image(systemName: "sidebar.left").frame(width: 18, height: 20)
@@ -29,6 +30,7 @@ struct ReaderToolbar: View {
             .accessibilityLabel("Outline sidebar")
             .accessibilityValue(reader.showOutline ? "Shown" : "Hidden")
 
+            if !minimal {
             Menu {
                 ForEach(reader.rendered?.headings ?? []) { heading in
                     Button(String(repeating: "  ", count: max(0, heading.level - 1)) + heading.title) {
@@ -46,6 +48,8 @@ struct ReaderToolbar: View {
             .disabled(reader.rendered?.headings.isEmpty ?? true)
             .help("Jump to a heading")
             .fixedSize()
+
+            }
 
             Spacer(minLength: 8)
 
@@ -102,6 +106,7 @@ struct ReaderToolbar: View {
             .accessibilityLabel("Find in document")
             .accessibilityValue(reader.showFind ? "Shown" : "Hidden")
 
+            if !minimal {
             Button { reader.wide.toggle() } label: {
                 Image(systemName: "arrow.left.and.right").frame(width: 18, height: 20)
             }
@@ -110,6 +115,8 @@ struct ReaderToolbar: View {
             .help(reader.wide ? "Use comfortable reading width" : "Use full window width")
             .accessibilityLabel("Reading width")
             .accessibilityValue(reader.wide ? "Full width" : "Comfortable width")
+
+            }
 
             Menu {
                 Toggle("Full Width", isOn: $reader.wide)

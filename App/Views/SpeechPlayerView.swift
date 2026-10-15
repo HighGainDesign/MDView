@@ -28,7 +28,18 @@ struct SpeechPlayerView: View {
             }
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: 14) { transport; Spacer(minLength: 12); options }
-                VStack(alignment: .leading, spacing: 8) { transport; options }
+                HStack(spacing: 12) {
+                    transport; Spacer(minLength: 8)
+                    Menu {
+                        Menu("Reading speed") {
+                            ForEach([0.5, 0.75, 1, 1.25, 1.5, 1.75, 2], id: \.self) { value in
+                                Button("\(value.formatted())×") { speech.setRate(value) }
+                            }
+                        }
+                        voiceChoices
+                    } label: { Image(systemName: "slider.horizontal.3") }
+                    .accessibilityLabel("Reading playback options").help("Voice and reading speed")
+                }
             }
             if let notice = speech.message ?? speech.session.notice {
                 Text(notice).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
@@ -61,23 +72,25 @@ struct SpeechPlayerView: View {
         HStack(spacing: 12) {
             Picker("Speed", selection: Binding(get: { speech.session.rate }, set: { speech.setRate($0) })) {
                 ForEach(Array(Set([0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, speech.session.rate])).sorted(), id: \.self) { value in Text("\(value.formatted())×").tag(value) }
-            }.frame(width: 130).help("Reading speed")
-            Menu {
-                Button("Automatic Voice") { speech.setVoice(nil) }
-                ForEach(languages, id: \.self) { language in
-                    Menu(Locale.current.localizedString(forIdentifier: language) ?? language) {
-                        ForEach(speech.session.availableVoices.filter { $0.language == language }) { voice in
-                            Button(voice.name) { speech.setVoice(voice.id) }
-                        }
-                    }
-                }
-                Divider()
-                Toggle("Use VoiceOver Speech Settings", isOn: Binding(
-                    get: { speech.preferences.useAssistiveTechnologySettings },
-                    set: { speech.preferences.useAssistiveTechnologySettings = $0; speech.session.useAssistiveTechnologySettings = $0 }))
-            } label: { Label(speech.session.resolvedVoice?.name ?? String(localized: "Voice"), systemImage: "waveform") }
+            }.labelsHidden().frame(width: 86).accessibilityLabel("Reading speed").help("Reading speed")
+            Menu { voiceChoices } label: { Label(speech.session.resolvedVoice?.name ?? String(localized: "Voice"), systemImage: "waveform") }
+            .accessibilityLabel("Reading voice").accessibilityValue(speech.session.resolvedVoice?.name ?? String(localized: "Automatic"))
             .lineLimit(1).frame(maxWidth: 180).help("Choose a voice for this document’s language")
         }
+    }
+    @ViewBuilder private var voiceChoices: some View {
+        Button("Automatic Voice") { speech.setVoice(nil) }
+        ForEach(languages, id: \.self) { language in
+            Menu(Locale.current.localizedString(forIdentifier: language) ?? language) {
+                ForEach(speech.session.availableVoices.filter { $0.language == language }) { voice in
+                    Button(voice.name) { speech.setVoice(voice.id) }
+                }
+            }
+        }
+        Divider()
+        Toggle("Use VoiceOver Speech Settings", isOn: Binding(
+            get: { speech.preferences.useAssistiveTechnologySettings },
+            set: { speech.preferences.useAssistiveTechnologySettings = $0; speech.session.useAssistiveTechnologySettings = $0 }))
     }
     private var languages: [String] { Set(speech.session.availableVoices.map(\.language)).sorted() }
 }
