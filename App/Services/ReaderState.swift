@@ -517,6 +517,7 @@ final class ReaderState {
         streamPaused = true
         isStreamingPreview = false
         renderTask?.cancel()
+        isRendering = false
         readTask?.cancel()
         announcements.cancel()
     }

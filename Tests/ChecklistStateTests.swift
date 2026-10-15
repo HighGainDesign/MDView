@@ -139,6 +139,14 @@ final class ChecklistStateTests: XCTestCase {
         reader.stop()
     }
 
+    func testStoppingAnInFlightRenderClearsTheBusyState() {
+        let reader = ReaderState(); reader.source = "A document being rendered."
+        reader.render()
+        XCTAssertTrue(reader.isRendering)
+        reader.stop()
+        XCTAssertFalse(reader.isRendering, "A cancelled render must not leave a closed reader busy forever")
+    }
+
     private func makeReader(_ source: String) throws -> (ReaderState, URL) {
         let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".md")
         try source.write(to: file, atomically: true, encoding: .utf8)
