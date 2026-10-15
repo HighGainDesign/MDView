@@ -24,6 +24,7 @@ jobs:
       - name: Prepare project
         run: |
           brew install xcodegen
+          python3 script/validate-localizations.py
           xcodegen generate
       - name: Run isolated macOS tests
         run: |

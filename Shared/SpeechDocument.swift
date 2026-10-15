@@ -215,6 +215,9 @@ enum SpeechDocumentBuilder {
         func label(_ key: String) -> String {
             // These short semantic cues follow document language, not UI locale.
             let base = language?.split(separator: "-").first.map(String.init) ?? "en"
+            if base == "zh", let language, Locale(identifier: language).language.script?.identifier == "Hant" {
+                return ["checked": "已完成", "unchecked": "未完成", "code": "略過程式碼區塊"][key]!
+            }
             let labels = [
                 "en": ["checked": "Checked", "unchecked": "Unchecked", "code": "Code block omitted"],
                 "es": ["checked": "Completado", "unchecked": "Pendiente", "code": "Bloque de código omitido"],

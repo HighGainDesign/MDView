@@ -84,4 +84,10 @@ final class SpeechDocumentTests: XCTestCase {
         XCTAssertEqual(segments.map(\.text).joined(), text)
     }
 
+    func testChineseSemanticCuesFollowDocumentScript() async throws {
+        let source = "- [ ] 閱讀\n\n```\ncode\n```\n"
+        let output = try await MarkdownRenderer.shared.render(source, documentLanguage: "zh-Hant", prepareSpeech: true)
+        XCTAssertTrue(output.speech!.segments.map(\.text).joined().contains("略過程式碼區塊"))
+    }
+
 }

@@ -30,6 +30,7 @@ jobs:
       - name: Run all tests
         run: |
           set -euo pipefail
+          python3 script/validate-localizations.py
           xcodegen generate
           xcodebuild -project MDView.xcodeproj -scheme MDView -configuration Debug \
             -destination 'platform=macOS' -derivedDataPath "$RUNNER_TEMP/MDView-tests" \
