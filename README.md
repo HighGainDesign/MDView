@@ -10,7 +10,7 @@ A small Markdown viewer for macOS 14 and later, read-only by default. Open files
 - Highlights for saved changes, with previous text, deletions, next/previous navigation, and individual or whole-document acknowledgement.
 - A bundled modern Finder Quick Look preview extension.
 - A Drafts URL action that sends previews without creating temporary files.
-- Live streaming (new in 1.1) through the public Marked-compatible channel; Drafts is the tested integration.
+- Live streaming through the public Marked-compatible channel; Drafts is the tested integration.
 
 ## Install and use
 
@@ -23,9 +23,8 @@ Open a Markdown file through Finder's **Open With → MDView**, or use **File �
 The setup guide explains the optional Quick Look extension and Drafts action;
 both are also available in Settings. You can return to the guide at any time.
 
-MDView 1.x targets macOS. Version 2.0 is planned for macOS and iOS with shared
-parser and rendering code. See the [roadmap](ROADMAP.md) for the planned
-accessibility, Read Aloud, localization and design work.
+See the [roadmap](ROADMAP.md) for planned Read Aloud, localization, design, and
+iOS support.
 
 ## See it in action
 
@@ -57,8 +56,6 @@ changed text visible. Drag the divider to resize it; press Escape to close it.
 
 ### Live streaming
 
-**New in 1.1.**
-
 Keep MDView beside Drafts and see headings, lists, and tables update as you write.
 **Pause** holds the current preview; **Resume** catches up to the latest text.
 There is no export step and no temporary Markdown file to manage.
@@ -72,8 +69,8 @@ See [live streaming setup and compatibility](#live-streaming-and-drafts) below.
 
 ## Checklists
 
-**New in 1.2.** Save checklist progress directly to Markdown so agents and other
-apps can see which tasks you have completed.
+Save checklist progress directly to Markdown so agents and other apps can see
+which tasks you have completed.
 
 Click a checkbox in a file-backed checklist. The first click asks whether to
 **Save Checkmarks** to that file. Cancel leaves it unchanged; confirming saves
@@ -131,25 +128,30 @@ An ad-hoc build cannot verify that identity. Automated tests use isolated
 preferences; signed app/extension integration must be tested separately. For
 your own signed builds, see [Contributing](CONTRIBUTING.md) for team configuration.
 
-## Reading width and saved changes
+## Reading and navigation
 
-Settings offers **System**, **Light**, and **Dark** document appearance. This preference updates all open document windows immediately and applies to new Finder Quick Look previews, even when MDView is closed. Close and reopen an existing Quick Look preview to see a changed preference. Your previous appearance choice is preserved on the first launch after updating.
+Settings offers **System**, **Light**, and **Dark** document appearance. Changes
+apply to all document windows and new Finder Quick Look previews. Close and
+reopen an existing Quick Look preview to update its appearance.
 
-Documents open at full width by default. Comfortable width caps long paragraphs. The **↔ width button** in the top bar switches the current window to full width; Settings chooses the default for newly opened documents. Tables fill the available reading width and wrap at word boundaries, with horizontal scrolling when necessary.
+Documents open at full width by default. The **↔** toolbar button switches the
+current window between full and comfortable width; Settings chooses the default
+for newly opened documents. Tables fill the reading width and scroll horizontally
+when necessary.
 
-File-backed documents refresh automatically, including atomic saves. MDView compares their rendered contents with the version you last reviewed. Added blocks use green highlights; edited blocks use amber with changed words marked. The top-bar changes button shows previous text and deletions and can jump to a change. **Mark This Reviewed** acknowledges one change and advances to the next, including deletions. **Mark All Reviewed** clears all remaining highlights. Acknowledgement advances an in-memory comparison baseline; if reviewed text changes again, it returns for review against the text you acknowledged. The baseline is held for the current document session, and changes accumulate across saves until reviewed. Drafts URL previews are snapshots; live streaming follows the editor separately.
+Saved files refresh automatically while preserving your reading position. Use
+**Reading options → Pause Updates** or the View menu to hold the current version;
+Resume catches up to the newest save. A waiting version disables checklist saves.
 
-For very large documents, review falls back to comparison by section position and labels that limitation in the panel.
-
-## Reading and accessibility
-
-**New in 1.3.** Keep your place during file updates. Use **Reading options →
-Pause Updates** (or the View menu) to hold the current version; Resume catches up
-to the newest save. A waiting version disables checklist saves.
+Changes accumulate against the text you last reviewed during this document
+session. Added blocks are green; edited blocks are amber, with changed words
+marked. Reviewing advances that comparison baseline without modifying the file.
+For very large documents, review uses section positions and labels that limitation.
+Drafts URL previews are snapshots; live streams follow the editor separately.
 
 Outline and **Show in Document** move focus to their destination. Review describes
-checkbox states, link destinations and image alternatives. The active reader
-announces errors, missing search results and review progress; rapid updates are combined.
+checkbox states, link destinations, and image alternatives. The active reader
+announces errors, missing search results, and review progress; rapid updates are combined.
 
 | View command | Shortcut |
 | --- | --- |
