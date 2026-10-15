@@ -116,6 +116,7 @@ struct ReaderView: View {
 
     private var checklistStatus: String {
         if let error = reader.checklistError { return error }
+        if reader.playbackHolding { return String(localized: "Stop Read Aloud before saving checkmarks.") }
         if reader.hasPendingFileUpdate { return String(localized: "Resume updates before saving more checkmarks.") }
         return reader.rendered?.tasks.isEmpty == true
             ? String(localized: "This checklist cannot be mapped safely. Checkboxes remain disabled.")
@@ -126,7 +127,7 @@ struct ReaderView: View {
         HStack(spacing: 0) {
             if reader.showOutline { outline; Divider() }
             if let rendered = reader.rendered {
-                MarkdownWebView(reader: reader, html: rendered.html, checklistEnabled: reader.checklistMode, checklistSaving: reader.checklistSaving, checklistRendering: reader.isRendering, checklistPromptPresented: reader.showChecklistConfirmation)
+                MarkdownWebView(reader: reader, html: rendered.html, playbackHolding: reader.playbackHolding, checklistEnabled: reader.checklistMode, checklistSaving: reader.checklistSaving, checklistRendering: reader.isRendering, checklistPromptPresented: reader.showChecklistConfirmation)
             } else {
                 ProgressView("Rendering Markdown…").frame(maxWidth: .infinity, maxHeight: .infinity)
             }

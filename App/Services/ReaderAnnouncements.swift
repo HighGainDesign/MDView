@@ -8,6 +8,11 @@ final class ReaderAnnouncements {
         case failure, saveFailure, refreshFailure, imageFailure, streamFailure
         case review, updates, changes, search, navigation
     }
+    var suppressRoutine = false {
+        didSet {
+            if suppressRoutine { for topic in [Topic.review, .updates, .changes] { cancel(topic: topic) } }
+        }
+    }
     var isEligible: () -> Bool = { false }
     private let delay: Duration
     private let post: (String) -> Void
@@ -25,6 +30,7 @@ final class ReaderAnnouncements {
 
     func schedule(_ message: String, topic: Topic) {
         guard isEligible(), !message.isEmpty else { return }
+        if suppressRoutine && [Topic.review, .updates, .changes].contains(topic) { return }
         if topic == .review { pending.removeValue(forKey: .changes) }
         pending[topic] = String(message.prefix(500))
         guard delivery == nil else { return }

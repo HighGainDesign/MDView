@@ -5,6 +5,7 @@ import WebKit
 struct MarkdownWebView: NSViewRepresentable {
     let reader: ReaderState
     let html: String
+    var playbackHolding = false
     var checklistEnabled = false
     var checklistSaving = false
     var checklistRendering = false
@@ -149,11 +150,11 @@ struct MarkdownWebView: NSViewRepresentable {
 
         func configureTasks() {
             guard contentReady, let webView else { return }
-            let enabled = reader.fileURL != nil && !reader.isStreamingPreview && !reader.hasPendingFileUpdate && !reader.checklistSaving && !reader.isRendering && !reader.showChecklistConfirmation && html == reader.rendered?.html
+            let enabled = !reader.playbackHolding && reader.fileURL != nil && !reader.isStreamingPreview && !reader.hasPendingFileUpdate && !reader.checklistSaving && !reader.isRendering && !reader.showChecklistConfirmation && html == reader.rendered?.html
             let canSave = reader.checklistMode
             let token = String(activeLoadGeneration)
             let focusIntent = reader.focusIntentGeneration
-            let configuration = "\(focusIntent):\(token):\(enabled):\(canSave):\(reader.checklistSaving):\(reader.isRendering):\(reader.showChecklistConfirmation)"
+            let configuration = "\(focusIntent):\(token):\(enabled):\(canSave):\(reader.checklistSaving):\(reader.isRendering):\(reader.showChecklistConfirmation):\(reader.playbackHolding)"
             guard taskConfiguration != configuration else { return }
             taskConfiguration = configuration
             var focusID = -1
@@ -191,7 +192,7 @@ struct MarkdownWebView: NSViewRepresentable {
                     for (const input of document.querySelectorAll('input[data-mdview-task]')) {
                         input.disabled = !enabled;
                         if (!saving && !rendering) input.checked = input.defaultChecked;
-                        input.title = canSave ? saveTitle : consentTitle;
+                        input.title = holding ? holdingTitle : (canSave ? saveTitle : consentTitle);
                     }
                     if (enabled) {
                         const pendingFocus = window.mdviewPendingTaskFocus;
@@ -223,7 +224,7 @@ struct MarkdownWebView: NSViewRepresentable {
                             window.webkit.messageHandlers.taskToggle.postMessage({id: Number(input.dataset.mdviewTask), checked, token: state.token});
                         });
                     }
-                    """, arguments: ["enabled": enabled, "canSave": canSave, "token": token, "saving": reader.checklistSaving, "rendering": reader.isRendering, "focusID": focusID, "focusIntent": focusIntent, "restoreFocus": Self.hasDocumentFocus(webView), "saveTitle": String(localized: "Save this checkbox change to the Markdown file"), "consentTitle": String(localized: "Click to save checkmarks in this file")], in: nil, contentWorld: Self.taskWorld)
+                    """, arguments: ["holding": reader.playbackHolding, "holdingTitle": String(localized: "Stop Read Aloud before saving checkmarks."), "enabled": enabled, "canSave": canSave, "token": token, "saving": reader.checklistSaving, "rendering": reader.isRendering, "focusID": focusID, "focusIntent": focusIntent, "restoreFocus": Self.hasDocumentFocus(webView), "saveTitle": String(localized: "Save this checkbox change to the Markdown file"), "consentTitle": String(localized: "Click to save checkmarks in this file")], in: nil, contentWorld: Self.taskWorld)
                 } catch {
                     if reader.checklistMode { reader.checklistError = String(localized: "Could not activate checklist controls: \(error.localizedDescription)") }
                 }

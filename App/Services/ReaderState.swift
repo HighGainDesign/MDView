@@ -6,28 +6,40 @@ final class ReaderState {
     typealias ChecklistWriter = @Sendable (URL, String, MarkdownTask, UInt8) async throws -> String
     private let checklistWriter: ChecklistWriter
     let announcements: ReaderAnnouncements
+    private var speechModel: ReaderSpeech?
+    @ObservationIgnored private let speechFactory: (@MainActor (ReaderState) -> ReaderSpeech)?
+    var speech: ReaderSpeech {
+        if let speechModel { return speechModel }
+        let model = speechFactory?(self) ?? ReaderSpeech(reader: self)
+        speechModel = model
+        return model
+    }
+    var existingSpeech: ReaderSpeech? { speechModel }
+    var playbackHolding: Bool { speechModel?.isHolding ?? false }
     private var pendingChangesAnnouncement = false
     private var pendingReviewAnnouncement = false
 
     init(announcements: ReaderAnnouncements = ReaderAnnouncements(),
          checklistWriter: @escaping ChecklistWriter = { url, source, task, marker in
              try await ChecklistFileStore.setMarker(at: url, source: source, task: task, marker: marker)
-         }) {
+         }, speechFactory: (@MainActor (ReaderState) -> ReaderSpeech)? = nil) {
         self.announcements = announcements
         self.checklistWriter = checklistWriter
+        self.speechFactory = speechFactory
     }
     var source = ""
     var title = "Markdown"
     var fileURL: URL? {
         didSet {
             guard fileURL != oldValue else { return }
+            speechModel?.close()
             externalFileRevision += 1
             cancelChecklistConfirmation()
             checklistMode = false
             checklistSaving = false; pendingChecklistSource = nil
             checklistUndo.removeAll(); checklistRedo.removeAll()
             localImageError = nil
-            fileUpdatesPaused = false; pendingFileSource = nil
+            fileUpdatesPaused = false; pendingFileSource = nil; pendingStreamName = nil
             documentLanguageOverride = nil
         }
     }
@@ -66,6 +78,7 @@ final class ReaderState {
     var currentChangeIndex = -1
     private(set) var fileUpdatesPaused = false
     private var pendingFileSource: String?
+    private var pendingStreamName: String?
     var hasPendingFileUpdate: Bool { pendingFileSource != nil }
     var lastRefreshed: Date?
     var isStreamingPreview = false
@@ -87,8 +100,8 @@ final class ReaderState {
     private var checklistUndo: [ChecklistOperation] = []
     private var checklistRedo: [ChecklistOperation] = []
 
-    var canUndoChecklist: Bool { !hasPendingFileUpdate && checklistMode && !checklistSaving && !isRendering && !checklistUndo.isEmpty }
-    var canRedoChecklist: Bool { !hasPendingFileUpdate && checklistMode && !checklistSaving && !isRendering && !checklistRedo.isEmpty }
+    var canUndoChecklist: Bool { !playbackHolding && !hasPendingFileUpdate && checklistMode && !checklistSaving && !isRendering && !checklistUndo.isEmpty }
+    var canRedoChecklist: Bool { !playbackHolding && !hasPendingFileUpdate && checklistMode && !checklistSaving && !isRendering && !checklistRedo.isEmpty }
     var zoom = 1.0
     var wide = UserDefaults.standard.object(forKey: "wideLayout") as? Bool ?? true
     var documentAppearance = DocumentAppearance.system
@@ -214,7 +227,7 @@ final class ReaderState {
         if text != source && text != pendingChecklistSource {
             checklistUndo.removeAll(); checklistRedo.removeAll()
         }
-        if fileUpdatesPaused {
+        if fileUpdatesPaused || playbackHolding {
             let hadPending = hasPendingFileUpdate
             pendingFileSource = text == source ? nil : text
             if hasPendingFileUpdate {
@@ -233,7 +246,7 @@ final class ReaderState {
         guard fileUpdatesPaused != paused else { return }
         fileUpdatesPaused = paused
         announcements.schedule(paused ? String(localized: "File updates paused.") : String(localized: "File updates resumed."), topic: .updates)
-        if !paused, let latest = pendingFileSource {
+        if !paused, !playbackHolding, let latest = pendingFileSource {
             pendingFileSource = nil
             acceptFileUpdate(latest)
         }
@@ -263,7 +276,7 @@ final class ReaderState {
 
     @discardableResult
     func requestTaskChecked(_ id: Int, checked: Bool) -> Bool {
-        guard !hasPendingFileUpdate, !checklistSaving, !isRendering, !showChecklistConfirmation,
+        guard !playbackHolding, !hasPendingFileUpdate, !checklistSaving, !isRendering, !showChecklistConfirmation,
               !isStreamingPreview, let fileURL, let rendered, rendered.taskSource == source,
               let task = rendered.tasks.first(where: { $0.id == id }), task.checked != checked else { return false }
         if checklistMode { setTaskChecked(id, checked: checked) }
@@ -295,7 +308,7 @@ final class ReaderState {
     }
 
     func setTaskChecked(_ id: Int, checked: Bool) {
-        guard !hasPendingFileUpdate, let rendered, rendered.taskSource == source,
+        guard !playbackHolding, !hasPendingFileUpdate, let rendered, rendered.taskSource == source,
               let task = rendered.tasks.first(where: { $0.id == id }), task.checked != checked else { return }
         performChecklistChange(task: task, marker: checked ? 120 : 32, history: .normal)
     }
@@ -311,7 +324,7 @@ final class ReaderState {
     }
 
     private func performChecklistChange(task: MarkdownTask, marker: UInt8, history: ChecklistHistory, allowRendering: Bool = false) {
-        guard !hasPendingFileUpdate, checklistMode, !checklistSaving, (!isRendering || allowRendering), !isStreamingPreview, let fileURL else { return }
+        guard !playbackHolding, !hasPendingFileUpdate, checklistMode, !checklistSaving, (!isRendering || allowRendering), !isStreamingPreview, let fileURL else { return }
         let expected = source
         let revision = externalFileRevision
         do {
@@ -370,7 +383,7 @@ final class ReaderState {
         let units = fileURL == nil ? nil : reviewedUnits
         renderTask = Task { [weak self] in
             do {
-                let output = try await MarkdownRenderer.shared.render(text, title: title, wide: wide, baseline: baseline, reviewedUnits: units, loadRemoteImages: loadRemoteImages, appearance: appearance, mapTasks: self?.fileURL != nil, documentLanguage: language)
+                let output = try await MarkdownRenderer.shared.render(text, title: title, wide: wide, baseline: baseline, reviewedUnits: units, loadRemoteImages: loadRemoteImages, appearance: appearance, mapTasks: self?.fileURL != nil, documentLanguage: language, prepareSpeech: true, speechOptions: self?.speechModel?.preferences.options ?? SpeechPreferences.shared.options)
                 guard !Task.isCancelled else { return }
                 self?.rendered = output
                 self?.errorMessage = nil
@@ -436,12 +449,9 @@ final class ReaderState {
                         switch snapshot.update {
                         case .waiting:
                             streamIsReceiving = false
-                            streamSourceName = nil
+                            if !playbackHolding { streamSourceName = nil }
                         case .text(let text, let sourceName):
-                            streamSourceName = sourceName
-                            streamIsReceiving = true
-                            lastRefreshed = Date()
-                            if source != text { source = text; render() }
+                            receiveStreamUpdate(text, sourceName: sourceName)
                         }
                     }
                 } catch {
@@ -452,6 +462,30 @@ final class ReaderState {
             }
             do { try await Task.sleep(for: .milliseconds(200)) } catch { return }
         }
+    }
+
+    func receiveStreamUpdate(_ text: String, sourceName: String?) {
+        guard isStreamingPreview else { return }
+        streamIsReceiving = true; lastRefreshed = Date()
+        if playbackHolding {
+            if source == text && streamSourceName == sourceName {
+                pendingFileSource = nil; pendingStreamName = nil
+            } else {
+                pendingFileSource = text; pendingStreamName = sourceName
+            }
+        } else {
+            streamSourceName = sourceName
+            if source != text { source = text; render() }
+        }
+    }
+
+    func applyPendingPlaybackVersion() {
+        guard let latest = pendingFileSource else { return }
+        pendingFileSource = nil
+        if isStreamingPreview {
+            let name = pendingStreamName; pendingStreamName = nil
+            receiveStreamUpdate(latest, sourceName: name)
+        } else { acceptFileUpdate(latest) }
     }
 
     func reload() {
@@ -476,9 +510,10 @@ final class ReaderState {
     func changeZoom(by amount: Double) { zoom = min(2.0, max(0.6, zoom + amount)) }
 
     func stop() {
+        speechModel?.close()
         cancelChecklistConfirmation()
         checklistMode = false
-        pendingFileSource = nil
+        pendingFileSource = nil; pendingStreamName = nil
         streamPaused = true
         isStreamingPreview = false
         renderTask?.cancel()

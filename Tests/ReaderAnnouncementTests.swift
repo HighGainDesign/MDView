@@ -115,6 +115,22 @@ final class ReaderAnnouncementTests: XCTestCase {
         reader.stop()
     }
 
+    func testReadAloudSuppressesRoutineProgressButKeepsFailuresDiscoverable() async throws {
+        var spoken: [String] = []
+        let announcements = ReaderAnnouncements(delay: .milliseconds(20)) { spoken.append($0) }
+        announcements.isEligible = { true }
+        announcements.schedule("Old queued update", topic: .changes)
+        announcements.suppressRoutine = true
+        announcements.schedule("New routine update", topic: .updates)
+        announcements.schedule("Save failed", topic: .saveFailure)
+        for _ in 0..<100 where spoken.isEmpty { try await Task.sleep(for: .milliseconds(10)) }
+        XCTAssertEqual(spoken, ["Save failed"])
+        announcements.suppressRoutine = false
+        announcements.schedule("All changes reviewed", topic: .review)
+        for _ in 0..<100 where spoken.count < 2 { try await Task.sleep(for: .milliseconds(10)) }
+        XCTAssertEqual(spoken.last, "All changes reviewed")
+    }
+
     private func settle(_ reader:ReaderState) async throws {
         for _ in 0..<200 {
             if !reader.isRendering { return }
