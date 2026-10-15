@@ -37,12 +37,17 @@ struct ReadingUnit: Hashable, Sendable {
         tag = element.tagName()
         alignment = try element.attr("align")
         html = try element.html()
-        guard html.contains("data-mdview-image-source") else {
+        guard html.contains("data-mdview-image-source") || html.contains("data-mdview-speech") else {
             comparisonHTML = html
             return
         }
-        let comparison = Element(try Tag.valueOf(tag), "")
+        let comparisonDocument = Document.createShell("")
+        comparisonDocument.outputSettings().prettyPrint(pretty: false)
+        let comparison = try comparisonDocument.body()!.appendElement(tag)
         try comparison.html(html)
+        for marker in try comparison.select("[data-mdview-speech]").array() {
+            try marker.removeAttr("data-mdview-speech")
+        }
         for image in try comparison.select("img").array() {
             if image.hasAttr("data-mdview-image-source") {
                 try image.attr("src", image.attr("data-mdview-image-source"))

@@ -7,16 +7,15 @@ should make reading, following updates and reviewing documents easier without
 turning the app into a general Markdown editor. Saving checklist markers is the
 deliberate exception to read-only viewing.
 
-The scope of **1.2 and 1.3 is agreed**. The later releases below are proposed
-milestones, not delivery dates. The established platform plan is macOS for 1.x,
-then macOS and iOS for 2.0. Versions 1.2 and 1.3 are released; Read Aloud is the next proposed milestone.
+Versions **1.2 and 1.3 are released**. The next release, **1.5**, combines Read
+Aloud, native UX polish and initial translations. There is no separate 1.4
+release. Later milestones are plans, not delivery dates; 2.0 brings iOS support.
 
 | Release | Focus | Planned outcome |
 | --- | --- | --- |
 | **1.2 — released** | Checklists and bounded accessibility fixes | Save ticks with first-click consent and Undo; clearer controls, task names and focus. |
 | **1.3 — released** | Accessible navigation and reliable updates | Preserve reading position, pause file updates, useful announcements, better change review and faster navigation. Prepare localization. |
-| **1.4 — proposed** | Read Aloud | User-controlled Markdown audio playback using Apple's on-device speech synthesis first. |
-| **1.5 — proposed** | Native UX polish and localization | A coherent visual and interaction design, plus an initial set of interface translations. |
+| **1.5 — in design** | Read Aloud, native UX polish and localization | On-device Markdown playback, a coherent native interface and initial translations. |
 | **2.0** | macOS and iOS | Shared reading and speech capabilities with native file handling and a mobile listening experience. |
 
 Design and accessibility improvements can also ship incrementally. The 1.5
@@ -102,17 +101,22 @@ Keep three concerns separate:
   document, with a user override and a predictable fallback. Interface language
   must not force every document to use the same speaking language.
 
-Prepare the infrastructure in 1.3 so accessibility announcements and future
-playback controls are localizable from the start. The initial translation
-languages and how document language is selected/detected remain to be decided.
+Version 1.3 provides the String Catalog, on-device document language detection
+and a per-document language override. Version 1.5 adds localized playback controls
+and interface translations in this priority order: English, Spanish, Simplified
+Chinese, Traditional Chinese, Japanese, French and German.
 Correct language metadata matters for pronunciation and assistive technology;
 see [W3C's language guidance](https://www.w3.org/WAI/WCAG22/Understanding/language-of-page.html).
 
-## 1.4 — Read Aloud, proposed
+## 1.5 — Read Aloud, UX polish and localization
+
+These features ship together in one macOS release.
+
+### Read Aloud
 
 Provide a listening feature that works independently of whether VoiceOver is on.
 
-### First playback experience
+#### First playback experience
 
 - Play, pause, resume and stop.
 - Read from the beginning, current section or a selected starting point.
@@ -129,7 +133,7 @@ Reuse the existing parsed/rendered Markdown structure to create speech segments.
 Do not introduce a second handwritten Markdown parser. Keep speech preparation
 and the playback engine reusable by the future iOS app.
 
-### Speech engine
+#### Speech engine
 
 Start with **AVSpeechSynthesizer** and the voices exposed by Apple's public APIs.
 [Apple documents speech generation as on-device](https://developer.apple.com/documentation/avfoundation/speech-synthesis);
@@ -154,7 +158,7 @@ A large mandatory model download should not become a requirement for ordinary
 viewing or basic Read Aloud. Audio export, voice cloning and cloud speech services
 are outside the initial playback scope.
 
-## 1.5 — UX polish and initial translations, proposed
+### Native UX polish and initial translations
 
 - Establish a consistent native design for document windows, controls, status,
   settings, setup, change review and playback.
@@ -164,7 +168,8 @@ are outside the initial playback scope.
   motion part of the design rather than later adjustments.
 - Use newer system treatments when available while retaining the supported
   macOS baseline and a readable document surface.
-- Ship a reviewed initial set of translations once target languages are chosen.
+- Ship reviewed English, Spanish, Simplified Chinese, Traditional Chinese,
+  Japanese, French and German interfaces, in that priority order.
 
 “Modern” should improve reading and navigation without adding clutter, excessive
 animation, mandatory glass effects or startup overhead. The approved icon remains

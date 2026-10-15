@@ -19,6 +19,7 @@ struct RenderedMarkdown: Sendable {
     var taskSource = ""
     var checkboxCount = 0
     var documentLanguage: String? = nil
+    var speech: SpeechDocument? = nil
 }
 
 /// Serializes native Apex conversions off the UI actor. App and Quick Look use
@@ -27,7 +28,7 @@ actor MarkdownRenderer {
     static let shared = MarkdownRenderer()
     private var stylesheet: String?
 
-    func render(_ source: String, title: String = "Markdown", wide: Bool = false, baseline: String? = nil, reviewedUnits: [ReadingUnit]? = nil, loadRemoteImages: Bool = false, appearance: DocumentAppearance = .system, mapTasks: Bool = false, documentLanguage: String? = nil) throws -> RenderedMarkdown {
+    func render(_ source: String, title: String = "Markdown", wide: Bool = false, baseline: String? = nil, reviewedUnits: [ReadingUnit]? = nil, loadRemoteImages: Bool = false, appearance: DocumentAppearance = .system, mapTasks: Bool = false, documentLanguage: String? = nil, prepareSpeech: Bool = false, speechOptions: SpeechOptions = SpeechOptions()) throws -> RenderedMarkdown {
         guard source.utf8.count <= MarkdownSource.maximumBytes else { throw ReaderError.tooLarge }
         if stylesheet == nil {
             guard let cssURL = Bundle(for: RendererBundleMarker.self).url(forResource: "reader", withExtension: "css") else {
@@ -40,6 +41,8 @@ actor MarkdownRenderer {
             MarkdownHeading(id: try heading.attr("id"), title: try heading.text(),
                             level: Int(heading.tagName().dropFirst()) ?? 1)
         }
+        let language = DocumentLanguage.resolve(selected: documentLanguage, text: try document.body()?.text() ?? "")
+        let speech = prepareSpeech ? try SpeechDocumentBuilder.prepare(document, source: source, language: language, options: speechOptions) : nil
         var changes = ChangeSummary()
         let comparisonBaseline: [ReadingUnit]?
         if let reviewedUnits {
@@ -58,7 +61,6 @@ actor MarkdownRenderer {
         // Source reuse can retain an input tag without its new attributes.
         let body = String(decoding: try document.body()?.htmlUTF8WithoutSourceReuse() ?? [], as: UTF8.self)
         let count = source.split(whereSeparator: \.isWhitespace).count
-        let language = DocumentLanguage.resolve(selected: documentLanguage, text: try document.body()?.text() ?? "")
         let languageAttribute = language.map { " lang=\"\($0)\"" } ?? ""
         let html = """
         <!doctype html><html\(languageAttribute) data-appearance="\(appearance.rawValue)"><head><meta charset="utf-8">
@@ -69,7 +71,7 @@ actor MarkdownRenderer {
         <title>\(Self.escapeHTML(title))</title><style>\(stylesheet ?? "")</style></head>
         <body class="\(wide ? "wide" : "")"><main id="document" dir="auto" aria-label="\(Self.escapeHTML(String(localized: "Markdown document")))">\(body)</main></body></html>
         """
-        return RenderedMarkdown(html: html, headings: headings, wordCount: count, changes: changes, comparisonBaseline: comparisonBaseline, tasks: tasks, taskSource: source, checkboxCount: checkboxCount, documentLanguage: language)
+        return RenderedMarkdown(html: html, headings: headings, wordCount: count, changes: changes, comparisonBaseline: comparisonBaseline, tasks: tasks, taskSource: source, checkboxCount: checkboxCount, documentLanguage: language, speech: speech)
     }
 
     private func parse(_ source: String, loadRemoteImages: Bool) throws -> Document {
