@@ -20,6 +20,24 @@ final class LocalizationTests: XCTestCase {
 }
 
 extension LocalizationTests {
+    func testActiveProcessLocalizesCommandsAndErrors() {
+        // Also run with AppleLanguages configured before this host launches.
+        let language = Locale.preferredLanguages.first ?? "en"
+        let code = language.hasPrefix("zh") ? (language.contains("Hant") || language.contains("TW") ? "zh-Hant" : "zh-Hans") : String(language.split(separator: "-").first ?? "en")
+        let examples = [
+            "en": ("Read Aloud", "This file is not UTF-8 or BOM-marked UTF-16 text."),
+            "es": ("Leer en voz alta", "Este archivo no es texto UTF-8 ni UTF-16 con BOM."),
+            "zh-Hans": ("朗读", "此文件不是 UTF-8 或带 BOM 的 UTF-16 文本。"),
+            "zh-Hant": ("朗讀", "此檔案不是 UTF-8 或帶 BOM 的 UTF-16 文字。"),
+            "ja": ("読み上げ", "このファイルはUTF-8でもBOM付きUTF-16でもありません。"),
+            "fr": ("Lire à voix haute", "Ce fichier n’est ni en UTF-8 ni en UTF-16 avec BOM."),
+            "de": ("Vorlesen", "Diese Datei ist weder UTF-8- noch UTF-16-Text mit BOM.")
+        ]
+        let expected = examples[code] ?? examples["en"]!
+        XCTAssertEqual(String(localized: "Read Aloud"), expected.0)
+        XCTAssertEqual(ReaderError.invalidEncoding.localizedDescription, expected.1)
+    }
+
     func testCompiledTranslationsAndPluralForms() throws {
         let examples: [(String, String, String, String)] = [
             ("es", "Leer en voz alta", "1 palabra", "2 palabras"),

@@ -61,6 +61,20 @@ jobs:
               exit 1
             }
 
+      - name: Prepare brief release notes
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          mkdir -p dist
+          python3 script/release-notes.py "$RELEASE_VERSION" > dist/release-notes.md
+
+      - name: Check each interface language in a fresh process
+        run: |
+          xcodebuild -project MDView.xcodeproj -scheme MDView -configuration Debug \
+            -destination 'platform=macOS' -derivedDataPath "$RUNNER_TEMP/MDView-tests" \
+            CODE_SIGN_IDENTITY=- build-for-testing > "$RUNNER_TEMP/locale-build.log" 2>&1 || { tail -60 "$RUNNER_TEMP/locale-build.log"; exit 1; }
+          python3 script/test-localizations.py "$RUNNER_TEMP/MDView-tests"
+
       - name: Preserve test failure details
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -127,6 +141,7 @@ jobs:
           path: |
             dist/MDView-${{ steps.version.outputs.version }}.dmg
             dist/MDView-${{ steps.version.outputs.version }}.dmg.sha256
+            dist/release-notes.md
           if-no-files-found: error
           retention-days: 7
 
@@ -164,4 +179,4 @@ jobs:
           fi
           gh release create "$RELEASE_TAG" \
             "dist/MDView-$RELEASE_VERSION.dmg" "dist/MDView-$RELEASE_VERSION.dmg.sha256" \
-            --verify-tag --title "MDView $RELEASE_VERSION" --generate-notes "${release_flags[@]}"
+            --verify-tag --title "MDView $RELEASE_VERSION" --notes-file dist/release-notes.md "${release_flags[@]}"

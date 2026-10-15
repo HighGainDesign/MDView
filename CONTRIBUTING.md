@@ -47,7 +47,8 @@ The main code boundaries are:
 
 Build with `SWIFT_EMIT_LOC_STRINGS=YES` (enabled in `project.yml`), then run
 `python3 script/sync-localizations.py /path/to/DerivedData` to sync the shared
-String Catalog. Rebuild to compile catalog changes. Keep count messages pluralized
+String Catalog. Rebuild to compile catalog changes. Run `python3 script/test-localizations.py /path/to/DerivedData`
+after `build-for-testing` to check each language in a fresh process. Keep count messages pluralized
 and localize native menus, errors and accessibility text as well as SwiftUI labels.
 Run `python3 script/validate-localizations.py` before rebuilding. English, Spanish,
 Simplified/Traditional Chinese, Japanese, French and German are included;

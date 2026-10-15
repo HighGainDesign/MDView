@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.5.0 — 2026-10-15
+## 1.5.0 — 2026-10-14
 
 - Add on-device Read Aloud, voice controls and saved positions.
 - Polish playback, setup, settings and compact layouts.
