@@ -9,12 +9,12 @@ deliberate exception to read-only viewing.
 
 The scope of **1.2 and 1.3 is agreed**. The later releases below are proposed
 milestones, not delivery dates. The established platform plan is macOS for 1.x,
-then macOS and iOS for 2.0. Version 1.2 is released; version 1.3 is next.
+then macOS and iOS for 2.0. Versions 1.2 and 1.3 are released; Read Aloud is the next proposed milestone.
 
 | Release | Focus | Planned outcome |
 | --- | --- | --- |
 | **1.2 — released** | Checklists and bounded accessibility fixes | Save ticks with first-click consent and Undo; clearer controls, task names and focus. |
-| **1.3** | Accessible navigation and reliable updates | Preserve reading position, pause file updates, useful announcements, better change review and faster navigation. Prepare localization. |
+| **1.3 — released** | Accessible navigation and reliable updates | Preserve reading position, pause file updates, useful announcements, better change review and faster navigation. Prepare localization. |
 | **1.4 — proposed** | Read Aloud | User-controlled Markdown audio playback using Apple's on-device speech synthesis first. |
 | **1.5 — proposed** | Native UX polish and localization | A coherent visual and interaction design, plus an initial set of interface translations. |
 | **2.0** | macOS and iOS | Shared reading and speech capabilities with native file handling and a mobile listening experience. |
@@ -45,10 +45,10 @@ Find focus fixes and normal macOS access to local images without folder grants.
 The checklist workflow has passed human-assisted spoken VoiceOver checks; that
 does not establish whole-app VoiceOver support.
 
-## 1.3 — accessibility and reading reliability (in development)
+## 1.3 — accessibility and reading reliability (released)
 
-Implement accessibility priorities 1–5 across the reader, rather than limiting
-the work to checklists.
+This release addresses accessibility priorities 1–5 across the reader, rather
+than limiting the work to checklists.
 
 1. **Preserve reading position during updates.** Preserve the user's reading
    anchor and VoiceOver cursor where possible. Add Pause Updates/Resume for saved

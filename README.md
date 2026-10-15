@@ -141,9 +141,9 @@ File-backed documents refresh automatically, including atomic saves. MDView comp
 
 For very large documents, review falls back to comparison by section position and labels that limitation in the panel.
 
-## 1.3 candidate: reading and accessibility
+## Reading and accessibility
 
-Version 1.3 is in development; the download link above remains the latest stable release.
+**New in 1.3.**
 Saved-file updates preserve surviving reading blocks and can be paused from
 **Reading options → Pause Updates** or **View → Pause Updates**. A notice shows
 when a newer version is waiting. Resume applies the newest saved contents.
