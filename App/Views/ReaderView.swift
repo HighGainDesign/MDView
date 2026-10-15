@@ -24,6 +24,17 @@ struct ReaderView: View {
                 }.font(.callout).padding(12).background(.quaternary)
                 Divider()
             }
+            if reader.playbackHolding && reader.hasPendingFileUpdate {
+                HStack(spacing: 10) {
+                    Image(systemName: "clock.arrow.circlepath").accessibilityHidden(true)
+                    Text("A newer version is waiting. Reading keeps the current version.")
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 8)
+                    Button("Show Latest") { reader.speech.showLatest() }
+                    Button("Read Latest") { reader.speech.showLatest(read: true) }
+                }.font(.callout).padding(12).background(.bar)
+                Divider()
+            }
             if reader.fileUpdatesPaused {
                 HStack(spacing: 10) {
                     Image(systemName: "pause.circle")
@@ -85,6 +96,10 @@ struct ReaderView: View {
                 .background(ReaderWindowMinimumSize(minimumHeight: reader.showChanges ? (beside ? 420 : 620) : 300))
             }
             Divider()
+            if let speech = reader.existingSpeech, speech.showPlayer {
+                SpeechPlayerView(reader: reader, speech: speech)
+                Divider()
+            }
             ReaderStatusBar(reader: reader)
         }
         .alert("Save checkmarks to this file?", isPresented: $reader.showChecklistConfirmation, presenting: reader.pendingChecklistConfirmation) { _ in
@@ -127,7 +142,7 @@ struct ReaderView: View {
         HStack(spacing: 0) {
             if reader.showOutline { outline; Divider() }
             if let rendered = reader.rendered {
-                MarkdownWebView(reader: reader, html: rendered.html, playbackHolding: reader.playbackHolding, checklistEnabled: reader.checklistMode, checklistSaving: reader.checklistSaving, checklistRendering: reader.isRendering, checklistPromptPresented: reader.showChecklistConfirmation)
+                MarkdownWebView(reader: reader, html: rendered.html, speechRequestID: reader.existingSpeech?.startRequest?.id, speechElementID: reader.existingSpeech?.session.isActive == true ? reader.existingSpeech?.session.currentSegment?.elementID : nil, speechFollowReading: reader.existingSpeech?.session.followReading ?? true, playbackHolding: reader.playbackHolding, checklistEnabled: reader.checklistMode, checklistSaving: reader.checklistSaving, checklistRendering: reader.isRendering, checklistPromptPresented: reader.showChecklistConfirmation)
             } else {
                 ProgressView("Rendering Markdown…").frame(maxWidth: .infinity, maxHeight: .infinity)
             }

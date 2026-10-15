@@ -116,7 +116,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
         if settings == nil {
             let window = NSWindow(contentViewController: NSHostingController(rootView: SettingsView()))
             window.title = String(localized: "MDView Settings")
-            window.styleMask = [.titled, .closable]
+            window.styleMask = [.titled, .closable, .resizable]
+            window.minSize = NSSize(width: 600, height: 540)
             window.setContentSize(NSSize(width: 600, height: 680))
             window.center()
             settings = NSWindowController(window: window)
@@ -145,6 +146,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
         guard let reader else { return }
         reader.setFileUpdatesPaused(!reader.fileUpdatesPaused)
     }
+    func openSpeechSettings() { SettingsNavigation.shared.page = .speech; showSettings(nil) }
+    @objc private func toggleSpeech(_ sender: Any?) { reader?.speech.showPlayer = true; reader?.speech.togglePlayback() }
+    @objc private func stopSpeech(_ sender: Any?) { reader?.existingSpeech?.stop() }
+    @objc private func speakBeginning(_ sender: Any?) { reader?.speech.requestStart(.beginning) }
+    @objc private func speakSection(_ sender: Any?) { reader?.speech.requestStart(.visible) }
+    @objc private func speakSelection(_ sender: Any?) { reader?.speech.requestStart(.selection) }
+    @objc private func nextSpeechSection(_ sender: Any?) { reader?.existingSpeech?.session.nextSection() }
+    @objc private func previousSpeechSection(_ sender: Any?) { reader?.existingSpeech?.session.previousSection() }
     @objc private func focusDocument(_ sender: Any?) { reader?.focusDocument() }
     @objc private func returnToNavigation(_ sender: Any?) { reader?.returnToNavigation() }
     @objc private func nextUncheckedTask(_ sender: Any?) { reader?.jumpToUncheckedTask() }
@@ -156,6 +165,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
     @objc private func undoCheckbox(_ sender: Any?) { undoActions.undo() }
     @objc private func redoCheckbox(_ sender: Any?) { undoActions.redo() }
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(toggleSpeech(_:)) {
+            menuItem.title = reader?.existingSpeech?.session.status == .playing ? String(localized: "Pause Reading") : String(localized: "Read Aloud")
+        }
+        let speechActions: [Selector] = [#selector(toggleSpeech(_:)), #selector(speakBeginning(_:)), #selector(speakSection(_:)), #selector(speakSelection(_:))]
+        if speechActions.contains(menuItem.action ?? #selector(toggleSpeech(_:))) && menuItem.action != nil {
+            return reader?.rendered?.speech?.segments.isEmpty == false && reader?.isRendering == false && reader?.checklistSaving == false && reader?.showChecklistConfirmation == false
+        }
+        if menuItem.action == #selector(stopSpeech(_:)) { return reader?.existingSpeech?.session.isActive == true }
+        if menuItem.action == #selector(nextSpeechSection(_:)) || menuItem.action == #selector(previousSpeechSection(_:)) { return reader?.existingSpeech?.session.document != nil }
         if menuItem.action == #selector(focusDocument(_:)) { return reader?.rendered != nil }
         if menuItem.action == #selector(returnToNavigation(_:)) { return reader?.navigationReturnTarget != nil }
         if menuItem.action == #selector(nextUncheckedTask(_:)) || menuItem.action == #selector(previousUncheckedTask(_:)) {
@@ -265,6 +283,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
         add(String(localized: "Zoom Out"), to: view, action: #selector(zoomOut(_:)), key: "-", target: self)
         add(String(localized: "Actual Size"), to: view, action: #selector(actualSize(_:)), key: "0", target: self)
         attach(view, to: bar)
+
+        let speech = NSMenu(title: String(localized: "Read Aloud"))
+        add(String(localized: "Read Aloud"), to: speech, action: #selector(toggleSpeech(_:)), key: "l", modifiers: [.command, .option], target: self)
+        add(String(localized: "Stop Reading"), to: speech, action: #selector(stopSpeech(_:)), key: "k", modifiers: [.command, .option], target: self)
+        speech.addItem(.separator())
+        add(String(localized: "From the Beginning"), to: speech, action: #selector(speakBeginning(_:)), target: self)
+        add(String(localized: "From Current Section"), to: speech, action: #selector(speakSection(_:)), target: self)
+        add(String(localized: "From Selection"), to: speech, action: #selector(speakSelection(_:)), target: self)
+        speech.addItem(.separator())
+        add(String(localized: "Previous Section"), to: speech, action: #selector(previousSpeechSection(_:)), target: self)
+        add(String(localized: "Next Section"), to: speech, action: #selector(nextSpeechSection(_:)), target: self)
+        attach(speech, to: bar)
 
         let window = NSMenu(title: String(localized: "Window"))
         add(String(localized: "Minimize"), to: window, action: #selector(NSWindow.performMiniaturize(_:)), key: "m")

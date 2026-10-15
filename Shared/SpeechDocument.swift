@@ -15,6 +15,7 @@ struct SpeechSegment: Identifiable, Equatable, Sendable {
     let text: String
     let sectionID: String?
     let kind: Kind
+    var elementOffset = 0
 }
 
 struct SpeechSection: Identifiable, Equatable, Sendable {
@@ -28,6 +29,7 @@ struct SpeechDocument: Equatable, Sendable {
     let sections: [SpeechSection]
     let language: String?
     let fingerprint: String
+    var elements: [String: SpeechElementMap] = [:]
 
     func section(at segment: Int) -> SpeechSection? {
         sections.last { $0.firstSegment <= segment }
@@ -46,6 +48,8 @@ enum SpeechDocumentBuilder {
         let options: SpeechOptions
         var segments: [SpeechSegment] = []
         var sections: [SpeechSection] = []
+        var elementMaps: [String: SpeechElementMap] = [:]
+        private struct Part { let text: String; var origin: TextNode? = nil }
         var nextElement = 0
         var sectionID: String?
 
@@ -54,7 +58,7 @@ enum SpeechDocumentBuilder {
         func build(_ document: Document, source: String) throws -> SpeechDocument {
             for child in document.body()?.children().array() ?? [] { try walk(child) }
             let fingerprint = SHA256.hash(data: Data(source.utf8)).map { String(format: "%02x", $0) }.joined()
-            return SpeechDocument(segments: segments, sections: sections, language: language, fingerprint: fingerprint)
+            return SpeechDocument(segments: segments, sections: sections, language: language, fingerprint: fingerprint, elements: elementMaps)
         }
 
         func walk(_ element: Element) throws {
@@ -65,14 +69,14 @@ enum SpeechDocumentBuilder {
                 let id = try element.attr("id")
                 sectionID = id.isEmpty ? "section-\(sections.count)" : id
                 sections.append(SpeechSection(id: sectionID!, title: title, firstSegment: segments.count))
-                try append(title, element: element, kind: .heading)
+                try append(parts(element), element: element, kind: .heading)
             } else if tag == "table" {
                 try table(element)
             } else if tag == "pre" {
-                let text = options.includeCode ? try element.text(trimAndNormaliseWhitespace: false) : label("code")
+                let text = options.includeCode ? try parts(element) : [Part(text: label("code"))]
                 try append(text, element: element, kind: .code)
             } else if tag == "li" {
-                var text = try inline(element, skipLists: true)
+                var text = try parts(element, skipLists: true)
                 if let task = try element.select("input[type=checkbox]").array().first(where: { input in
                     var parent = input.parent()
                     while let current = parent {
@@ -81,7 +85,7 @@ enum SpeechDocumentBuilder {
                     }
                     return false
                 }) {
-                    text = label(task.hasAttr("checked") ? "checked" : "unchecked") + ": " + text
+                    text.insert(Part(text: label(task.hasAttr("checked") ? "checked" : "unchecked") + ": "), at: 0)
                 }
                 try append(text, element: element, kind: .listItem)
                 // Only lists directly owned by this item; deeper items visit theirs.
@@ -91,9 +95,9 @@ enum SpeechDocumentBuilder {
                     if parent === element { for child in list.children().array() { try walk(child) } }
                 }
             } else if ["p", "dt", "dd", "figcaption", "summary"].contains(tag) {
-                try append(inline(element), element: element, kind: .paragraph)
+                try append(parts(element), element: element, kind: .paragraph)
             } else if tag == "img" {
-                try append(inline(element), element: element, kind: .image)
+                try append(parts(element), element: element, kind: .image)
             } else {
                 for child in element.children().array() { try walk(child) }
             }
@@ -110,44 +114,74 @@ enum SpeechDocumentBuilder {
             let headers = hasHeaders ? try firstCells.map { try inline($0) } : []
             for (index, row) in rows.enumerated() {
                 if index == 0 && hasHeaders && rows.count > 1 { continue }
-                let cells = try row.children().array().map { try inline($0) }
-                let values = cells.enumerated().map { column, value in
-                    !headers.isEmpty && index > 0 && column < headers.count && !headers[column].isEmpty
-                        ? "\(headers[column]): \(value)" : value
+                var spoken: [Part] = []
+                for (column, cell) in row.children().array().enumerated() {
+                    if column > 0 { spoken.append(Part(text: "; ")) }
+                    if !headers.isEmpty && index > 0 && column < headers.count && !headers[column].isEmpty {
+                        spoken.append(Part(text: headers[column] + ": "))
+                    }
+                    spoken += try parts(cell)
                 }
-                try append(values.joined(separator: "; "), element: row, kind: .tableRow)
+                try append(spoken, element: row, kind: .tableRow)
             }
         }
 
-        func inline(_ node: Node, skipLists: Bool = false) throws -> String {
-            if let text = node as? TextNode { return text.getWholeText() }
-            guard let element = node as? Element else { return "" }
+        func inline(_ node: Node) throws -> String {
+            try parts(node).map(\.text).joined().split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        }
+
+        private func parts(_ node: Node, skipLists: Bool = false) throws -> [Part] {
+            if let text = node as? TextNode { return [Part(text: text.getWholeText(), origin: text)] }
+            guard let element = node as? Element else { return [] }
             let tag = element.tagName()
-            if try element.attr("aria-hidden") == "true" || element.hasAttr("hidden") { return "" }
-            if skipLists && ["ul", "ol"].contains(tag) { return "" }
-            if tag == "input" { return "" }
-            if tag == "img" { return try element.attr("alt") }
-            if tag == "br" { return " " }
-            let role = try element.attr("role")
-            let classes = try element.attr("class").split(separator: " ")
+            if try element.attr("aria-hidden") == "true" || element.hasAttr("hidden") { return [] }
+            if skipLists && ["ul", "ol"].contains(tag) { return [] }
+            if tag == "input" { return [] }
+            if tag == "img" { return [Part(text: try element.attr("alt"))] }
+            if tag == "br" { return [Part(text: " ")] }
+            let role = try element.attr("role"), classes = try element.attr("class").split(separator: " ")
             if role == "doc-backlink" || role == "doc-noteref" ||
-                classes.contains(where: { ["footnote-backref", "reversefootnote", "footnote-ref"].contains(String($0)) }) { return "" }
-            let text = try element.getChildNodes().map { try inline($0, skipLists: skipLists) }.joined()
-            if tag == "a" && options.includeLinkDestinations, let href = try? element.attr("href"), !href.isEmpty, !href.hasPrefix("#") {
-                return text == href ? text : text + " (" + href + ")"
+                classes.contains(where: { ["footnote-backref", "reversefootnote", "footnote-ref"].contains(String($0)) }) { return [] }
+            var result = try element.getChildNodes().flatMap { try parts($0, skipLists: skipLists) }
+            if tag == "a" && options.includeLinkDestinations {
+                let href = try element.attr("href")
+                if !href.isEmpty && !href.hasPrefix("#"), result.map(\.text).joined() != href {
+                    result.append(Part(text: " (" + href + ")"))
+                }
             }
-            return text
+            return result
         }
 
-        func append(_ raw: String, element: Element, kind: SpeechSegment.Kind) throws {
-            let text = kind == .code && options.includeCode ? raw.trimmingCharacters(in: .whitespacesAndNewlines)
-                : raw.split(whereSeparator: \.isWhitespace).joined(separator: " ")
-            guard !text.isEmpty else { return }
+        private func append(_ parts: [Part], element: Element, kind: SpeechSegment.Kind) throws {
+            let literal = kind == .code && options.includeCode
+            var sourceRanges: [ObjectIdentifier: NSRange] = [:], sourceLength = 0
+            func index(_ node: Node) {
+                if let text = node as? TextNode {
+                    let length = text.getWholeText().utf16.count
+                    sourceRanges[ObjectIdentifier(text)] = NSRange(location: sourceLength, length: length)
+                    sourceLength += length
+                } else { for child in node.getChildNodes() { index(child) } }
+            }
+            index(element)
+            var text = "", pendingSpace = false, anchors: [SpeechAnchor] = []
+            for part in parts {
+                let content = literal ? part.text : part.text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+                if !literal && !content.isEmpty && !text.isEmpty && (pendingSpace || part.text.first?.isWhitespace == true) { text += " " }
+                if let origin = part.origin, let range = sourceRanges[ObjectIdentifier(origin)] {
+                    anchors.append(SpeechAnchor(sourceRange: range, sourceText: part.text, spokenOffset: text.utf16.count, literal: literal))
+                }
+                text += content
+                pendingSpace = part.text.last?.isWhitespace == true
+            }
+            guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
             let elementID = "speech-\(nextElement)"; nextElement += 1
             try element.attr("data-mdview-speech", elementID)
+            elementMaps[elementID] = SpeechElementMap(sourceLength: sourceLength, anchors: anchors)
+            var offset = 0
             for (index, chunk) in Self.chunks(text).enumerated() {
                 segments.append(SpeechSegment(id: "\(elementID)-\(index)", elementID: elementID,
-                    text: chunk, sectionID: sectionID, kind: kind))
+                    text: chunk, sectionID: sectionID, kind: kind, elementOffset: offset))
+                offset += chunk.utf16.count
             }
         }
 

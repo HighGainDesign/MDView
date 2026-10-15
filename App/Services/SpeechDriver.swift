@@ -16,6 +16,7 @@ enum SpeechDriverEvent: Sendable {
 @MainActor
 protocol SpeechDriver: AnyObject {
     var eventHandler: ((SpeechDriverEvent) -> Void)? { get set }
+    var useAssistiveTechnologySettings: Bool { get set }
     func speak(_ text: String, voice: SpeechVoice?, rate: Double, token: UUID)
     func pause() -> Bool
     func resume() -> Bool

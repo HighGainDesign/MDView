@@ -5,10 +5,13 @@ import Observation
 /// Receiving new source remains independent from applying it to the page.
 @MainActor @Observable
 final class ReaderSpeech {
+    enum StartMode: String { case beginning, visible, selection }
+    struct StartRequest: Equatable { let id: UUID; let mode: StartMode; let fingerprint: String }
+    private(set) var startRequest: StartRequest?
     let session: SpeechSession
     let preferences: SpeechPreferences
     private(set) var isHolding = false
-    var showPlayer = false
+    var showPlayer = false { didSet { if showPlayer && !oldValue { session.refreshVoices() } } }
     private(set) var message: String?
     @ObservationIgnored private weak var reader: ReaderState?
     @ObservationIgnored private let progress: SpeechProgressStore
@@ -29,12 +32,13 @@ final class ReaderSpeech {
     }
 
     var bookmark: SpeechBookmark? {
+        _ = preferences.historyRevision
         guard let reader, let url = reader.fileURL, let document = reader.rendered?.speech else { return nil }
         return progress.resume(url: url, document: document)
     }
 
     func start(at index: Int = 0, offset: Int = 0) {
-        latestTask?.cancel(); latestTask = nil
+        latestTask?.cancel(); latestTask = nil; startRequest = nil
         showPlayer = true; message = nil
         if reader?.showChecklistConfirmation == true {
             message = String(localized: "Finish the checklist confirmation before starting Read Aloud."); return
@@ -43,13 +47,37 @@ final class ReaderSpeech {
               let output = reader.rendered, output.taskSource == reader.source, let document = output.speech else {
             message = String(localized: "Wait for the document to finish loading, then try Read Aloud again."); return
         }
+        if session.isActive { session.stop() }
         playbackURL = reader.isStreamingPreview ? nil : reader.fileURL
         isHolding = true
+        session.useAssistiveTechnologySettings = preferences.useAssistiveTechnologySettings
         session.followReading = preferences.followReading
         session.setRate(preferences.rate)
         session.setVoice(preferences.voice(for: document.language))
         session.play(document, from: index, offset: offset)
     }
+    func requestStart(_ mode: StartMode) {
+        if mode == .beginning { start(); return }
+        showPlayer = true; message = nil
+        guard let reader, !reader.isRendering, let document = reader.rendered?.speech else {
+            message = String(localized: "Wait for the document to finish loading, then try Read Aloud again."); return
+        }
+        startRequest = StartRequest(id: UUID(), mode: mode, fingerprint: document.fingerprint)
+    }
+    func completeStart(_ request: StartRequest, elementID: String?, offset: Int) {
+        guard startRequest?.id == request.id, let reader,
+              let document = reader.rendered?.speech, document.fingerprint == request.fingerprint else { return }
+        startRequest = nil
+        guard let elementID else {
+            message = String(localized: "Select text in the document to choose where reading starts."); return
+        }
+        if request.mode == .visible, let index = document.segments.firstIndex(where: { $0.elementID == elementID }) {
+            start(at: document.section(at: index)?.firstSegment ?? index)
+        } else if let position = document.position(elementID: elementID, sourceOffset: offset) {
+            start(at: position.index, offset: position.offset)
+        } else { message = String(localized: "That selection is no longer available. Select the text again.") }
+    }
+
     func resumeSaved() {
         if let bookmark { start(at: bookmark.index, offset: bookmark.offset) }
         else { start() }
@@ -61,7 +89,7 @@ final class ReaderSpeech {
         default: resumeSaved()
         }
     }
-    func stop() { latestTask?.cancel(); latestTask = nil; session.stop() }
+    func stop() { latestTask?.cancel(); latestTask = nil; startRequest = nil; session.stop() }
     func close() { stop(); isHolding = false; showPlayer = false }
     func showLatest(read: Bool = false) {
         let oldSection = session.document?.section(at: session.currentIndex)?.id
@@ -85,7 +113,7 @@ final class ReaderSpeech {
         session.setVoice(id)
     }
     func setFollowReading(_ follow: Bool) { preferences.followReading = follow; session.followReading = follow }
-    func clearHistory() { progress.clear() }
+    func clearHistory() { progress.clear(); preferences.historyRevision += 1 }
 
     private func didProgress() {
         reader?.announcements.suppressRoutine = session.isActive

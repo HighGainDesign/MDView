@@ -51,3 +51,6 @@ pre .mdview-word-change { padding: 0; }
 :root[data-appearance="dark"] .mdview-word-change { background: #775319; }
 @media (max-width: 600px) { main { padding: 24px 22px 60px; } h1 { font-size: 1.8em; } }
 @media print { :root[data-appearance] { color-scheme: light; --ink: #000; --paper: #fff; --line: #ccc; --wash: #f5f5f5; } main { max-width: none; padding: 0; } pre, table { break-inside: avoid; } }
+
+.mdview-speaking { outline: 2px solid var(--link); outline-offset: 4px; }
+@media (prefers-contrast: more) { .mdview-speaking { outline-width: 3px; } }

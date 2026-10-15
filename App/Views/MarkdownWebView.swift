@@ -5,6 +5,9 @@ import WebKit
 struct MarkdownWebView: NSViewRepresentable {
     let reader: ReaderState
     let html: String
+    var speechRequestID: UUID? = nil
+    var speechElementID: String? = nil
+    var speechFollowReading = true
     var playbackHolding = false
     var checklistEnabled = false
     var checklistSaving = false
@@ -42,6 +45,7 @@ struct MarkdownWebView: NSViewRepresentable {
             coordinator.navigate(request)
         }
         coordinator.configureTasks()
+        coordinator.synchronizeSpeech()
         if coordinator.searchGeneration != reader.searchGeneration {
             coordinator.searchGeneration = reader.searchGeneration
             coordinator.find()
@@ -63,12 +67,19 @@ struct MarkdownWebView: NSViewRepresentable {
         var imageReloadGeneration = -1
         var navigationGeneration = -1
         var searchGeneration = -1
+        private var speechRequestID: UUID?
+        private var speechHighlightKey: String?
         private var readingPosition: [String: Any]?
         private var readingPositionFocusIntent = -1
         private static let documentScript: String = {
             guard let url = Bundle.main.url(forResource: "reader-document", withExtension: "js"),
                   let script = try? String(contentsOf: url, encoding: .utf8) else { return "return false;" }
             return script
+        }()
+        private static let speechScript: String = {
+            guard let url = Bundle.main.url(forResource: "reader-speech", withExtension: "js"),
+                  let value = try? String(contentsOf: url, encoding: .utf8) else { return "return null;" }
+            return value
         }()
         private var loadGeneration = 0
         private var activeLoadGeneration = 0
@@ -86,6 +97,7 @@ struct MarkdownWebView: NSViewRepresentable {
         func load(_ html: String, forceNavigation: Bool = false) {
             guard let webView else { return }
             let canUpdateContent = contentReady && !forceNavigation
+            speechHighlightKey = nil
             loadGeneration += 1
             contentReady = false
             taskConfiguration = nil
@@ -106,6 +118,7 @@ struct MarkdownWebView: NSViewRepresentable {
                         activeNavigation = nil
                         contentReady = true
                         configureTasks()
+                        synchronizeSpeech()
                         if let target = pendingTarget { pendingTarget = nil; navigate(target) }
                         if !reader.searchText.isEmpty { find() }
                         return
@@ -145,7 +158,35 @@ struct MarkdownWebView: NSViewRepresentable {
                 if let target { navigate(target) }
             }
             configureTasks()
+            synchronizeSpeech()
             if !reader.searchText.isEmpty { find() }
+        }
+
+        func synchronizeSpeech() {
+            guard contentReady, let webView, let speech = reader.existingSpeech else { return }
+            if let request = speech.startRequest, speechRequestID != request.id {
+                speechRequestID = request.id
+                let generation = loadGeneration
+                Task { [weak self, weak speech] in
+                    guard let self, let speech else { return }
+                    let result = try? await webView.callAsyncJavaScript(Self.speechScript,
+                        arguments: ["operation": "locate", "mode": request.mode.rawValue], in: nil, contentWorld: Self.taskWorld) as? [String: Any]
+                    guard generation == loadGeneration else { speechRequestID = nil; synchronizeSpeech(); return }
+                    speech.completeStart(request, elementID: result?["elementID"] as? String, offset: result?["offset"] as? Int ?? 0)
+                }
+            }
+            let element = speech.session.isActive ? speech.session.currentSegment?.elementID : nil
+            let follow = speech.session.followReading
+            let key = "\(element ?? "none"):\(follow)"
+            guard speechHighlightKey != key else { return }
+            speechHighlightKey = key
+            let generation = loadGeneration
+            Task { [weak self] in
+                guard let self, generation == loadGeneration, speechHighlightKey == key else { return }
+                _ = try? await webView.callAsyncJavaScript(Self.speechScript,
+                    arguments: ["operation": "highlight", "elementID": element ?? "", "follow": follow],
+                    in: nil, contentWorld: Self.taskWorld)
+            }
         }
 
         func configureTasks() {

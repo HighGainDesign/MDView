@@ -158,6 +158,7 @@ final class SpeechSessionTests: XCTestCase {
 final class RecordingSpeechDriver: SpeechDriver {
     struct Request { let text: String; let voice: SpeechVoice?; let rate: Double; let token: UUID }
     var eventHandler: ((SpeechDriverEvent) -> Void)?
+    var useAssistiveTechnologySettings = false
     var requests: [Request] = []
     var paused = false
     func speak(_ text: String, voice: SpeechVoice?, rate: Double, token: UUID) {

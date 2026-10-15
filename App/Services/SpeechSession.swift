@@ -22,6 +22,7 @@ final class SpeechSession {
     private(set) var rate = 1.0
     private(set) var selectedVoiceID: String?
     private(set) var resolvedVoice: SpeechVoice?
+    private(set) var availableVoices: [SpeechVoice] = []
     private(set) var notice: String?
     var followReading = true
     @ObservationIgnored var onStop: (() -> Void)?
@@ -44,7 +45,14 @@ final class SpeechSession {
         return document.segments[currentIndex]
     }
     var isActive: Bool { status == .playing || status == .paused }
-    var availableVoices: [SpeechVoice] { voices() }
+
+    var useAssistiveTechnologySettings: Bool {
+        get { driver.useAssistiveTechnologySettings }
+        set {
+            guard driver.useAssistiveTechnologySettings != newValue else { return }
+            driver.useAssistiveTechnologySettings = newValue; reconfigure()
+        }
+    }
 
     func play(_ document: SpeechDocument, from index: Int = 0, offset: Int = 0) {
         invalidate()
@@ -77,7 +85,7 @@ final class SpeechSession {
         invalidate(); status = .idle; coordinator.release(self); onProgress?(); onStop?()
     }
     func setRate(_ value: Double) {
-        let value = value.isFinite ? min(2, max(0.5, value)) : 1
+        let value = value.isFinite ? (min(2, max(0.5, value)) * 100).rounded() / 100 : 1
         guard rate != value else { return }
         rate = value; reconfigure()
     }
@@ -118,6 +126,7 @@ final class SpeechSession {
 
     private func resolveVoice() {
         let available = voices()
+        availableVoices = available
         if let selectedVoiceID, let chosen = available.first(where: { $0.id == selectedVoiceID }) {
             resolvedVoice = chosen; notice = nil; return
         }

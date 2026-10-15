@@ -18,6 +18,7 @@ final class SpeechPreferences {
     var options: SpeechOptions {
         didSet { if let data = try? JSONEncoder().encode(options) { defaults.set(data, forKey: "speechOptions") } }
     }
+    var historyRevision = 0
     private var voiceIDs: [String: String]
 
     init(defaults: UserDefaults = ReaderPreferences.defaults) {
@@ -39,5 +40,5 @@ final class SpeechPreferences {
         defaults.set(voiceIDs, forKey: "speechVoices")
     }
     private func key(_ language: String?) -> String { language.flatMap(DocumentLanguage.normalized) ?? "automatic" }
-    private static func validRate(_ value: Double) -> Double { value.isFinite ? min(2, max(0.5, value)) : 1 }
+    private static func validRate(_ value: Double) -> Double { value.isFinite ? (min(2, max(0.5, value)) * 100).rounded() / 100 : 1 }
 }

@@ -82,6 +82,17 @@ struct ReaderToolbar: View {
                 toolSeparator
             }
 
+            Button {
+                if let speech = reader.existingSpeech, speech.showPlayer { speech.close() }
+                else { reader.speech.showPlayer = true }
+            } label: {
+                if compact { Image(systemName: "headphones").frame(width: 18, height: 20) }
+                else { Label("Read Aloud", systemImage: "headphones") }
+            }
+            .fixedSize().tint(reader.existingSpeech?.showPlayer == true ? .accentColor : .secondary)
+            .disabled(reader.rendered?.speech?.segments.isEmpty ?? true)
+            .accessibilityLabel("Read Aloud controls").help("Show or hide Read Aloud controls")
+
             Button { reader.showFind.toggle() } label: {
                 Image(systemName: "magnifyingglass").frame(width: 18, height: 20)
             }
@@ -144,7 +155,9 @@ struct ReaderStatusBar: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            if reader.isStreamingPreview {
+            if reader.playbackHolding {
+                Label(reader.existingSpeech?.session.status == .playing ? "Reading aloud" : reader.hasPendingFileUpdate ? "Newer version waiting" : "Reading paused", systemImage: "headphones")
+            } else if reader.isStreamingPreview {
                 Label(streamStatus, systemImage: streamSymbol)
                     .help(reader.streamPaused
                           ? "This preview is held. Resume to show the latest streamed text."
