@@ -3,6 +3,7 @@
 A small Markdown viewer for macOS 14 and later, read-only by default. Open files written by your agents, or preview a draft from Drafts.
 
 - Native document windows, Open Recent, and multiple files.
+- On-device Read Aloud with installed macOS voices, section navigation and saved positions.
 - Automatic refresh, including editors that replace files atomically.
 - Tables, task lists, links, code blocks, footnotes, and blockquotes.
 - Optional checklist saves with first-click consent, automatic per-tick saving, and Undo/Redo.
@@ -11,6 +12,7 @@ A small Markdown viewer for macOS 14 and later, read-only by default. Open files
 - A bundled modern Finder Quick Look preview extension.
 - A Drafts URL action that sends previews without creating temporary files.
 - Live streaming through the public Marked-compatible channel; Drafts is the tested integration.
+- English, Spanish, Simplified and Traditional Chinese, Japanese, French and German interfaces.
 
 ## Install and use
 
@@ -23,8 +25,7 @@ Open a Markdown file through Finder's **Open With → MDView**, or use **File �
 The setup guide explains the optional Quick Look extension and Drafts action;
 both are also available in Settings. You can return to the guide at any time.
 
-See the [roadmap](ROADMAP.md) for planned Read Aloud, localization, design, and
-iOS support.
+See the [roadmap](ROADMAP.md) for future work, including iOS.
 
 ## See it in action
 
@@ -90,6 +91,25 @@ be mapped safely to their original Markdown remain disabled.
 
 Quick Look, Drafts snapshots and live streams remain read-only. Checklist saves
 participate in the existing saved-change comparison, like other file changes.
+
+## Read Aloud
+
+Use the headphones button to open the player, then **Play** (⌥⌘L). Start from the
+beginning, current section or selected text; pause, stop (⌥⌘K), skip sections,
+choose a voice and adjust speed. **Follow Reading** scrolls with speech without
+moving keyboard focus. Settings includes voice preferences, code/link reading
+options and **Clear Reading History**.
+
+Speech uses installed macOS voices on-device, with no account or model download.
+Voice availability varies by Mac; add voices in macOS Accessibility settings.
+Document language controls pronunciation independently of the interface language.
+macOS’s per-app language setting chooses the interface language.
+
+While speaking or paused, MDView holds the displayed version and keeps the latest
+incoming update separately. **Show Latest** displays it; **Read Latest** switches
+and starts reading. Checkmarks cannot save while that version is held. Saved-file
+positions use hashes and offsets, never document text; live streams aren’t stored.
+Only one document speaks at a time. Sleep or an output-device change pauses speech.
 
 ## Build and run
 
@@ -162,9 +182,9 @@ announces errors, missing search results, and review progress; rapid updates are
 | Next/Previous Unreviewed Change | ⌥⌘] / ⌥⌘[ |
 
 **Reading options → Document Language** overrides on-device detection for the current
-window. It does not translate text or add Read Aloud. Unknown language stays
-unspecified; the interface currently ships in English. Broader VoiceOver feedback
-is welcome; these improvements do not establish full accessibility support.
+window and controls Read Aloud pronunciation. It does not translate document text.
+Unknown language stays unspecified. Broader VoiceOver feedback is welcome; these
+improvements do not establish full accessibility support.
 
 ## Create a signed installer
 

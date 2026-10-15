@@ -49,7 +49,9 @@ Build with `SWIFT_EMIT_LOC_STRINGS=YES` (enabled in `project.yml`), then run
 `python3 script/sync-localizations.py /path/to/DerivedData` to sync the shared
 String Catalog. Rebuild to compile catalog changes. Keep count messages pluralized
 and localize native menus, errors and accessibility text as well as SwiftUI labels.
-The current interface ships in English; reviewed translations follow later.
+Run `python3 script/validate-localizations.py` before rebuilding. English, Spanish,
+Simplified/Traditional Chinese, Japanese, French and German are included;
+native-speaker corrections are welcome. Keep product names and URL schemes unchanged.
 Document language is separate, detected on-device or selected per window.
 
 ## Pull requests

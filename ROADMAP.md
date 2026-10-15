@@ -15,7 +15,7 @@ release. Later milestones are plans, not delivery dates; 2.0 brings iOS support.
 | --- | --- | --- |
 | **1.2 — released** | Checklists and bounded accessibility fixes | Save ticks with first-click consent and Undo; clearer controls, task names and focus. |
 | **1.3 — released** | Accessible navigation and reliable updates | Preserve reading position, pause file updates, useful announcements, better change review and faster navigation. Prepare localization. |
-| **1.5 — in design** | Read Aloud, native UX polish and localization | On-device Markdown playback, a coherent native interface and initial translations. |
+| **1.5 — in development** | Read Aloud, native UX polish and localization | On-device Markdown playback, a coherent native interface and initial translations. |
 | **2.0** | macOS and iOS | Shared reading and speech capabilities with native file handling and a mobile listening experience. |
 
 Design and accessibility improvements can also ship incrementally. The 1.5
@@ -168,7 +168,7 @@ are outside the initial playback scope.
   motion part of the design rather than later adjustments.
 - Use newer system treatments when available while retaining the supported
   macOS baseline and a readable document surface.
-- Ship reviewed English, Spanish, Simplified Chinese, Traditional Chinese,
+- Ship English, Spanish, Simplified Chinese, Traditional Chinese,
   Japanese, French and German interfaces, in that priority order.
 
 “Modern” should improve reading and navigation without adding clutter, excessive
