@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import WebKit
 import os
 
 @MainActor
@@ -55,6 +56,44 @@ final class MarkdownDocument: NSDocument {
     }
 
     private var checklistClosePending = false
+
+    private var printableWebView: WKWebView? {
+        func find(in view: NSView) -> WKWebView? {
+            if let webView = view as? WKWebView { return webView }
+            for child in view.subviews {
+                if let webView = find(in: child) { return webView }
+            }
+            return nil
+        }
+        return windowControllers.compactMap { $0.window?.contentView }.compactMap { find(in: $0) }.first
+    }
+
+    override func validateUserInterfaceItem(_ item: any NSValidatedUserInterfaceItem) -> Bool {
+        if item.action == #selector(printDocument(_:)) {
+            return reader.rendered != nil && printableWebView?.url != nil && printableWebView?.isLoading == false
+        }
+        return super.validateUserInterfaceItem(item)
+    }
+
+    override func printOperation(withSettings printSettings: [NSPrintInfo.AttributeKey: Any]) throws -> NSPrintOperation {
+        guard let webView = printableWebView, webView.url != nil, !webView.isLoading else {
+            throw CocoaError(.fileReadUnknown, userInfo: [NSLocalizedDescriptionKey:
+                String(localized: "The document is still loading. Try printing again in a moment.")])
+        }
+        // Print the displayed version, including paused streams and held file updates.
+        // WebKit paginates the rendered DOM using @media print, without window chrome.
+        let info = printInfo.copy() as! NSPrintInfo
+        info.horizontalPagination = .fit
+        info.verticalPagination = .automatic
+        info.isHorizontallyCentered = false
+        info.isVerticallyCentered = false
+        info.dictionary().addEntries(from: printSettings)
+        let operation = webView.printOperation(with: info)
+        // WebKit requests page data on the main run loop while AppKit spools it.
+        operation.canSpawnSeparateThread = true
+        operation.jobTitle = displayName
+        return operation
+    }
 
     override func close() {
         if reader.checklistSaving {

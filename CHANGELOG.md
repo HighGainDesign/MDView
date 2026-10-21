@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Print rendered documents with ⌘P, including Save as PDF.
+
 ## 1.5.0 — 2026-10-14
 
 - Add on-device Read Aloud, voice controls and saved positions.

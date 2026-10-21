@@ -111,6 +111,13 @@ and starts reading. Checkmarks cannot save while that version is held. Saved-fil
 positions use hashes and offsets, never document text; live streams aren’t stored.
 Only one document speaks at a time. Sleep or an output-device change pauses speech.
 
+## Print or save as PDF
+
+Choose **File → Print…** (⌘P) to print the rendered document. Use the print
+dialog’s **PDF → Save as PDF** option to create a PDF. Printing uses a light
+page, paginates tables and wraps code; app controls and temporary highlights
+are omitted. Paused documents print the version currently displayed.
+
 ## Build and run
 
 Install Xcode 26+ and [XcodeGen](https://github.com/yonaskolb/XcodeGen), then run:

@@ -255,6 +255,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
         file.addItem(recentItem)
         file.addItem(.separator())
         add(String(localized: "Close Window"), to: file, action: #selector(NSWindow.performClose(_:)), key: "w")
+        file.addItem(.separator())
+        add(String(localized: "Print…"), to: file, action: #selector(NSDocument.printDocument(_:)), key: "p")
         attach(file, to: bar)
 
         let edit = NSMenu(title: String(localized: "Edit"))
