@@ -4240,46 +4240,6 @@
         }
       }
     },
-    "HTML tags written directly in Markdown, such as <div> or <iframe>, are omitted to prevent active embedded content. Standard Markdown tables, links and images work. Scripts and embedded websites cannot run.": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Se omiten etiquetas HTML como <div> o <iframe> para impedir contenido activo. Las tablas, enlaces e imágenes de Markdown funcionan. No se ejecutan scripts ni sitios incrustados."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "为防止活动嵌入内容，直接写在 Markdown 中的 <div>、<iframe> 等 HTML 标签会被省略。标准 Markdown 表格、链接和图片正常显示。脚本和内嵌网页无法运行。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "為防止主動式內嵌內容，直接寫在 Markdown 中的 <div>、<iframe> 等 HTML 標籤會被省略。標準 Markdown 表格、連結和圖片正常顯示。指令碼和內嵌網頁無法執行。"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "埋め込みコンテンツの実行を防ぐため、<div>や<iframe>などMarkdown内のHTMLタグは省略します。通常の表、リンク、画像は表示できます。スクリプトや埋め込みサイトは実行されません。"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Les balises HTML comme <div> ou <iframe> sont omises pour empêcher le contenu actif intégré. Les tableaux, liens et images Markdown fonctionnent. Les scripts et sites intégrés ne peuvent pas s’exécuter."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Direkte HTML-Tags wie <div> oder <iframe> werden zum Schutz vor aktiven Inhalten ausgelassen. Markdown-Tabellen, Links und Bilder funktionieren. Skripte und eingebettete Websites werden nicht ausgeführt."
-          }
-        }
-      }
-    },
     "Heading level %lld": {
       "localizations": {
         "es": {
@@ -6169,46 +6129,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Keine Stimme passt zu dieser Sprache. Wähle eine andere oder füge eine in den Systemeinstellungen hinzu."
-          }
-        }
-      }
-    },
-    "Not rendered": {
-      "localizations": {
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No se muestra"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "不渲染"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "不顯示"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "表示しない"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Non affiché"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Nicht dargestellt"
           }
         }
       }
@@ -9138,6 +9058,100 @@
           "stringUnit": {
             "state": "translated",
             "value": "Gespeicherte Änderungen prüfen (⇧⌘R)"
+          }
+        }
+      }
+    },
+    "Safe HTML formatting and image width/height are supported. Scripts, interactive controls and embedded websites are blocked. Remote images still require this document’s opt-in.": {
+      "comment": "Explains the safe subset of author-supplied HTML. No scripts or automatic remote image loading.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Safe HTML formatting and image width/height are supported. Scripts, interactive controls and embedded websites are blocked. Remote images still require this document’s opt-in."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se admiten el formato HTML seguro y el ancho y alto de las imágenes. Se bloquean los scripts, los controles interactivos y los sitios web incrustados. Las imágenes remotas siguen requiriendo autorización para este documento."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "支持安全的 HTML 格式和图像宽高。脚本、交互控件和嵌入式网站会被屏蔽。远程图像仍需为此文档单独启用。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "支援安全的 HTML 格式和圖片寬高。指令碼、互動控制項和嵌入式網站會被封鎖。遠端圖片仍須為此文件個別啟用。"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "安全なHTML書式と画像の幅・高さに対応しています。スクリプト、対話型コントロール、埋め込みWebサイトはブロックされます。リモート画像は書類ごとに許可が必要です。"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La mise en forme HTML sûre et les dimensions des images sont prises en charge. Les scripts, les commandes interactives et les sites intégrés sont bloqués. Les images distantes nécessitent toujours une autorisation pour ce document."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sichere HTML-Formatierung und Bildabmessungen werden unterstützt. Skripte, interaktive Steuerelemente und eingebettete Websites werden blockiert. Externe Bilder müssen weiterhin für dieses Dokument erlaubt werden."
+          }
+        }
+      }
+    },
+    "Sanitized formatting": {
+      "comment": "Explains the safe subset of author-supplied HTML. No scripts or automatic remote image loading.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sanitized formatting"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Formato filtrado"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "经过滤的格式"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "經過濾的格式"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "安全な書式のみ"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mise en forme filtrée"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gefilterte Formatierung"
           }
         }
       }

@@ -78,8 +78,9 @@ actor MarkdownRenderer {
         guard source.utf8.count <= MarkdownSource.maximumBytes else { throw ReaderError.tooLarge }
         var options = apex_options_for_mode(APEX_MODE_UNIFIED)
         // The C API makes false values explicit; the Swift wrapper only forwards
-        // true boolean options, whereas unified mode defaults to unsafe HTML.
-        options.unsafe = false
+        // Let Apex emit author HTML, then apply our allowlist in HTMLAdapter.
+        // This enables GitHub-style passive formatting, never executable content.
+        options.unsafe = true
         options.enable_plugins = false
         options.allow_external_plugin_detection = false
         options.enable_file_includes = false
@@ -98,8 +99,8 @@ actor MarkdownRenderer {
         options.id_format = 0
         options.github_pre_lang = false
         options.generate_header_ids = true
-        // Normalize only parsed image destinations. Apex/cmark otherwise drops
-        // file: URLs in safe mode. Raw HTML and executable URLs remain disabled.
+        // Normalize parsed image destinations and exclude author-supplied inputs
+        // before they can be mistaken for renderer-generated Markdown task controls.
         guard let imageExtension = cmark_syntax_extension_new("mdview-local-images") else {
             throw ReaderError.rendererUnavailable
         }
@@ -109,7 +110,19 @@ actor MarkdownRenderer {
             defer { cmark_iter_free(iterator) }
             while cmark_iter_next(iterator) != CMARK_EVENT_DONE {
                 guard cmark_iter_get_event_type(iterator) == CMARK_EVENT_ENTER,
-                      let node = cmark_iter_get_node(iterator), cmark_node_get_type(node) == CMARK_NODE_IMAGE,
+                      let node = cmark_iter_get_node(iterator) else { continue }
+                let type = cmark_node_get_type(node)
+                if type == CMARK_NODE_HTML_INLINE || type == CMARK_NODE_HTML_BLOCK {
+                    if let literal = cmark_node_get_literal(node) {
+                        let html = String(cString: literal)
+                        if html.range(of: "<input", options: .caseInsensitive) != nil,
+                           (try? SwiftSoup.parseBodyFragment(html).select("input").size()) != 0 {
+                            _ = "".withCString { cmark_node_set_literal(node, $0) }
+                        }
+                    }
+                    continue
+                }
+                guard type == CMARK_NODE_IMAGE,
                       let destination = cmark_node_get_url(node) else { continue }
                 let source = String(cString: destination)
                 if URLComponents(string: source)?.scheme?.lowercased() == "file",

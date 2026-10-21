@@ -44,7 +44,7 @@ struct SettingsView: View {
             Section("Document content") {
                 PolicyRow(String(localized: "Local images"), value: String(localized: "Automatic"), help: String(localized: "Local images load automatically from relative paths, absolute paths, file URLs and symlinks wherever macOS allows access. MDView does not require image-folder grants. Image formats are handled by WebKit. Quick Look supports embedded data images only."))
                 PolicyRow(String(localized: "Remote images"), value: String(localized: "Off by default"), help: String(localized: "In a document’s Reading options (…) choose Load Remote Images to allow HTTPS images for that window. Hosts can see your IP address and image requests. MDView sends no document referrer. The choice resets on closing; Quick Look never loads remote images."))
-                PolicyRow(String(localized: "Embedded HTML"), value: String(localized: "Not rendered"), help: String(localized: "HTML tags written directly in Markdown, such as <div> or <iframe>, are omitted to prevent active embedded content. Standard Markdown tables, links and images work. Scripts and embedded websites cannot run."))
+                PolicyRow(String(localized: "Embedded HTML"), value: String(localized: "Sanitized formatting"), help: String(localized: "Safe HTML formatting and image width/height are supported. Scripts, interactive controls and embedded websites are blocked. Remote images still require this document’s opt-in."))
             }
         }.formStyle(.grouped)
     }

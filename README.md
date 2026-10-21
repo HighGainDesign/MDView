@@ -118,6 +118,20 @@ dialog’s **PDF → Save as PDF** option to create a PDF. Printing uses a light
 page, paginates tables and wraps code; app controls and temporary highlights
 are omitted. Paused documents print the version currently displayed.
 
+## Image sizing
+
+Use GitHub-style HTML to specify an image’s displayed size without shrinking its
+source file:
+
+```html
+<img src="images/screenshot.png" alt="Settings screen" width="320">
+```
+
+MDView preserves valid image width/height attributes and safe HTML formatting,
+including disclosure blocks. Scripts, interactive controls and active embeds are
+removed. Remote images still require the document’s opt-in. Printing does not add
+an image-size cap; the author controls its size.
+
 ## Build and run
 
 Install Xcode 26+ and [XcodeGen](https://github.com/yonaskolb/XcodeGen), then run:
@@ -247,7 +261,7 @@ There is no runtime CDN, external parser process, or bundled JavaScript parser. 
 
 - Documents are read-only by default. Explicit checkmark consent changes only task markers in a user-selected file; arbitrary text editing is not supported.
 - UTF-8 and BOM-marked UTF-16 files are supported, up to 8 MB.
-- Raw HTML is omitted. Scripts, plugins, file includes, syntax-highlighting tools, and math rendering are disabled.
+- Safe HTML formatting is supported; scripts, plugins, file includes and external rendering tools are disabled. Math and Mermaid rendering are not yet supported.
 - Callout markers such as `[!NOTE]` remain readable inside ordinary blockquotes; specialized callout styling is deferred.
 - Images linked to websites are off by default. In the current document’s **Reading options (…) → Load Remote Images**, you can opt in to HTTPS images. Hosts can see your IP address and image requests; MDView sends no document referrer. This choice lasts only until you close the document, and Quick Look never loads remote images. Local images load automatically from relative paths, absolute paths, local `file://` URLs and symlinks wherever macOS permits access. There are no MDView image-folder grants or document-folder boundaries; image formats are handled by WebKit. The directly distributed macOS app uses normal filesystem access, subject to macOS privacy permissions and file permissions. Quick Look previews text and embedded data images.
 - Links open in the browser/mail app; relative file links open as another document subject to macOS file permissions.

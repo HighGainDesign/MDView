@@ -2,7 +2,8 @@
 
 ## Unreleased
 
-- Print rendered documents with ⌘P, including Save as PDF.
+- Print rendered documents with ⌘P and a compact PDF layout.
+- Support safe GitHub-style HTML and authored image dimensions.
 
 ## 1.5.0 — 2026-10-14
 

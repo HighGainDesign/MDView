@@ -175,6 +175,14 @@ are outside the initial playback scope.
 animation, mandatory glass effects or startup overhead. The approved icon remains
 the app's visual identity unless a separate change is requested.
 
+## GitHub compatibility
+
+Use GitHub Flavored Markdown as the compatibility target, with regression fixtures
+for tables, task lists, autolinks, strikethrough and sanitized HTML/image sizing.
+Keep author-controlled dimensions consistent on screen and paper. Track remaining
+GitHub-specific rendering—alerts, math and Mermaid—separately; do not claim full
+GitHub parity until those features and broader conformance checks pass.
+
 ## 2.0 — macOS and iOS
 
 - Share parsing, rendering, speech preparation and suitable reader state while

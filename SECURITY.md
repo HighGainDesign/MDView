@@ -4,8 +4,11 @@ MDView handles documents as untrusted input. Documents are read-only by default.
 After explicit per-document consent, checklist interaction changes only mapped task markers
 in a user-selected Markdown file. Writes validate the displayed source under
 file coordination and refuse stale clicks; Quick Look and streaming cannot
-write files. MDView does not execute document scripts. Raw HTML, parser plugins,
-file includes, and external rendering tools are disabled. WebKit content uses a
+write files. Author HTML passes through a tag and attribute allowlist, permitting
+passive formatting and image dimensions. Scripts, event handlers, interactive
+controls and active embeds are removed. Image URLs follow the same local/remote
+policy as Markdown images. Parser plugins, file includes and external rendering
+tools are disabled. WebKit content uses a
 restrictive content policy and a nonpersistent data store. Checkbox interaction
 uses app-owned JavaScript in an isolated WebKit content world. Only trusted user
 events from mapped checkboxes in the current main-frame render may request a

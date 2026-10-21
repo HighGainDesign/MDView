@@ -89,6 +89,13 @@ final class PrintingTests: XCTestCase {
         for expected in ["Printed document", "formatted paragraph", "Completed task", "Remaining task", "Row 90", "finalCode", "End of the printed document."] {
             XCTAssertTrue(text.contains(expected), "Missing printed content: \(expected)")
         }
+        // PDFKit may substitute the system font and slightly adjust its point size.
+        let body = try XCTUnwrap(pdf.findString("formatted paragraph", withOptions: []).first?.attributedString)
+        let bodyFont = try XCTUnwrap(body.attribute(.font, at: 0, effectiveRange: nil) as? NSFont)
+        XCTAssertLessThanOrEqual(bodyFont.pointSize, 10.8, "Keep print text compact independently of reader zoom")
+        let heading = try XCTUnwrap(pdf.findString("Printed document", withOptions: []).first?.attributedString)
+        let headingFont = try XCTUnwrap(heading.attribute(.font, at: 0, effectiveRange: nil) as? NSFont)
+        XCTAssertLessThanOrEqual(headingFont.pointSize, 17.2)
         XCTAssertFalse(text.contains("**formatted paragraph**"))
         XCTAssertFalse(text.contains("https://example.com"), "Print visible link text rather than Markdown syntax")
         XCTAssertEqual(webView.pageZoom, 1.5, "Printing must not change the reader's zoom")

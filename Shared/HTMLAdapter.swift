@@ -6,15 +6,16 @@ enum HTMLAdapter {
         "html", "head", "body", "p", "h1", "h2", "h3", "h4", "h5", "h6", "a", "blockquote",
         "ul", "ol", "li", "dl", "dt", "dd", "pre", "code", "hr", "br", "table", "thead", "tbody",
         "tfoot", "tr", "th", "td", "caption", "details", "summary", "del", "ins", "sup", "sub",
-        "strong", "em", "s", "mark", "figure", "figcaption", "span", "div", "section", "input", "img", "abbr"
+        "strong", "em", "b", "i", "kbd", "samp", "s", "mark", "figure", "figcaption", "span", "div", "section", "input", "img", "abbr"
     ]
     private static let attributes: Set<String> = [
         "href", "src", "alt", "title", "id", "class", "rowspan", "colspan", "align", "aria-label",
-        "aria-hidden", "role", "type", "disabled", "checked", "start", "reversed", "scope", "style"
+        "aria-hidden", "role", "type", "disabled", "checked", "start", "reversed", "scope", "style", "width", "height", "open"
     ]
 
     static func prepare(_ document: Document, loadRemoteImages: Bool = false) throws {
         var ids: [String: Int] = [:]
+        var htmlHeadingIndex = 0
         for element in try document.getAllElements().array() {
             let tag = element.tagName()
             if tag == "#root" { continue }
@@ -26,11 +27,27 @@ enum HTMLAdapter {
             for attribute in element.getAttributes()?.asList() ?? [] {
                 if !attributes.contains(attribute.getKey()) { try element.removeAttr(attribute.getKey()) }
             }
+            if tag != "details" { try element.removeAttr("open") }
+            for dimension in ["width", "height"] where element.hasAttr(dimension) {
+                let value = try element.attr(dimension).trimmingCharacters(in: .whitespacesAndNewlines)
+                let percent = value.hasSuffix("%")
+                let digits = percent ? String(value.dropLast()) : value
+                if tag == "img", !digits.isEmpty, digits.utf8.allSatisfy({ (48...57).contains($0) }),
+                   let number = Int32(digits), number > 0, !percent || number <= 100 {
+                    try element.attr(dimension, String(number) + (percent ? "%" : ""))
+                } else { try element.removeAttr(dimension) }
+            }
             if element.hasAttr("style") {
                 let style = try element.attr("style").replacingOccurrences(of: " ", with: "").lowercased()
                 if !["text-align:left", "text-align:right", "text-align:center", "text-align:left;", "text-align:right;", "text-align:center;"].contains(style) {
                     try element.removeAttr("style")
                 }
+            }
+            if ["h1", "h2", "h3", "h4", "h5", "h6"].contains(tag), !element.hasAttr("id") {
+                // Apex assigns IDs to Markdown headings; author HTML also needs
+                // stable targets for the outline and accessible navigation.
+                try element.attr("id", "html-heading-\(htmlHeadingIndex)")
+                htmlHeadingIndex += 1
             }
             if element.hasAttr("id") {
                 let original = try element.attr("id")
@@ -41,8 +58,19 @@ enum HTMLAdapter {
             if element.hasAttr("href") {
                 let href = try element.attr("href")
                 if href.hasPrefix("#") { try element.attr("href", "#mdview-" + String(href.dropFirst())) }
-                else if let scheme = URLComponents(string: href)?.scheme,
-                        !["http", "https", "mailto"].contains(scheme.lowercased()) { try element.removeAttr("href") }
+                else {
+                    // Browsers discard control characters in URL schemes.
+                    // Validate the same normalized form so encoded tabs/newlines
+                    // cannot disguise a script URL in author HTML.
+                    let normalized = String(String.UnicodeScalarView(href.unicodeScalars.filter {
+                        !CharacterSet.controlCharacters.contains($0)
+                    })).trimmingCharacters(in: .whitespacesAndNewlines)
+                    if let url = URLComponents(string: normalized) {
+                        if let scheme = url.scheme, !["http", "https", "mailto"].contains(scheme.lowercased()) {
+                            try element.removeAttr("href")
+                        }
+                    } else { try element.removeAttr("href") }
+                }
             }
             if tag == "input" {
                 guard try element.attr("type") == "checkbox" else { try element.remove(); continue }
