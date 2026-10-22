@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Render GitHub alerts, math and Mermaid diagrams offline.
+- Improve Mac compatibility and reproducible builds.
+
 ## 1.6.0 — 2026-10-22
 
 - Print rendered documents with ⌘P and a compact PDF layout.

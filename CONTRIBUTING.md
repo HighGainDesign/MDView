@@ -43,6 +43,18 @@ The main code boundaries are:
 - `Integrations/Drafts/`: action resource and URL integration.
 - `script/`: local build and release packaging.
 
+## Rendering dependencies
+
+`Vendor/Apex` contains unchanged build sources for Apex1.1.34 and its pinned
+cmark-gfm/libyaml submodules. Verify them with `python3 script/verify-vendor.py`.
+Keep the revision/hash inventory and original licenses when updating the snapshot;
+do not edit generated source hashes to hide a parser change.
+
+The app bundles the committed KaTeX/Mermaid resources. Users and ordinary Xcode
+builds do not need Node. To regenerate them, run `npm ci --ignore-scripts` and
+`npm run build` inside `Rendering/`, using its lockfile. Keep the KaTeX override,
+Safari17 target and generated license notices; rerun rendering/security tests.
+
 ## Localization
 
 Build with `SWIFT_EMIT_LOC_STRINGS=YES` (enabled in `project.yml`), then run

@@ -207,6 +207,7 @@ enum DocumentChanges {
 
     private static func textNodes(in node: Node) -> [TextNode] {
         if let text = node as? TextNode { return [text] }
+        if let element = node as? Element, element.hasClass("mdview-math") { return [] }
         return node.getChildNodes().flatMap { textNodes(in: $0) }
     }
 

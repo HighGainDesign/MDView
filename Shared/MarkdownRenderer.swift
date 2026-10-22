@@ -27,8 +27,10 @@ struct RenderedMarkdown: Sendable {
 actor MarkdownRenderer {
     static let shared = MarkdownRenderer()
     private var stylesheet: String?
+    private let mathTypesetter = MathTypesetter()
 
-    func render(_ source: String, title: String = "Markdown", wide: Bool = false, baseline: String? = nil, reviewedUnits: [ReadingUnit]? = nil, loadRemoteImages: Bool = false, appearance: DocumentAppearance = .system, mapTasks: Bool = false, documentLanguage: String? = nil, prepareSpeech: Bool = false, speechOptions: SpeechOptions = SpeechOptions()) throws -> RenderedMarkdown {
+    func render(_ source: String, title: String = "Markdown", wide: Bool = false, baseline: String? = nil, reviewedUnits: [ReadingUnit]? = nil, loadRemoteImages: Bool = false, appearance: DocumentAppearance = .system, mapTasks: Bool = false, documentLanguage: String? = nil, prepareSpeech: Bool = false, speechOptions: SpeechOptions = SpeechOptions()) async throws -> RenderedMarkdown {
+        try Task.checkCancellation()
         guard source.utf8.count <= MarkdownSource.maximumBytes else { throw ReaderError.tooLarge }
         if stylesheet == nil {
             guard let cssURL = Bundle(for: RendererBundleMarker.self).url(forResource: "reader", withExtension: "css") else {
@@ -57,6 +59,29 @@ actor MarkdownRenderer {
         }
         let checkboxCount = try document.select("input[type=checkbox]").size()
         let tasks = mapTasks ? try MarkdownTasks.attach(to: document, source: source) : []
+        // Typeset after semantic review/speech, so generated artwork never changes
+        // comparison identity or duplicates MathML tokens in Read Aloud.
+        for (index, expression) in try document.select("span.mdview-math").array().enumerated() {
+            let tex = try expression.text(trimAndNormaliseWhitespace: false)
+            try expression.attr("data-mdview-math-source", tex)
+            if index < 200, let math = mathTypesetter.render(tex, display: expression.hasClass("mdview-math-display")) {
+                try expression.html(math)
+            }
+        }
+        let diagramDeadline = ContinuousClock.now.advanced(by: .seconds(6))
+        for (index, figure) in try document.select("figure.mdview-diagram").array().enumerated() {
+            try Task.checkCancellation()
+            guard index < 20, ContinuousClock.now < diagramDeadline, let code = try figure.select("pre > code.language-mermaid").first(),
+                  let pre = code.parent(), let artifact = await DiagramRenderer.shared.render(try code.text(trimAndNormaliseWhitespace: false)) else { continue }
+            let image = Element(try Tag.valueOf("img"), "")
+            try image.attr("src", artifact.image)
+            try image.attr("alt", artifact.description)
+            try figure.prependChild(image)
+            let details = try figure.appendElement("details")
+            try details.appendElement("summary").text(String(localized: "Diagram source"))
+            try pre.remove()
+            try details.appendChild(pre)
+        }
         // Serialize the sanitized DOM itself, including newly attached task metadata.
         // Source reuse can retain an input tag without its new attributes.
         let body = String(decoding: try document.body()?.htmlUTF8WithoutSourceReuse() ?? [], as: UTF8.self)
@@ -75,6 +100,7 @@ actor MarkdownRenderer {
     }
 
     private func parse(_ source: String, loadRemoteImages: Bool) throws -> Document {
+        try Task.checkCancellation()
         guard source.utf8.count <= MarkdownSource.maximumBytes else { throw ReaderError.tooLarge }
         var options = apex_options_for_mode(APEX_MODE_UNIFIED)
         // The C API makes false values explicit; the Swift wrapper only forwards
@@ -105,6 +131,7 @@ actor MarkdownRenderer {
             throw ReaderError.rendererUnavailable
         }
         defer { cmark_syntax_extension_free(cmark_get_default_mem_allocator(), imageExtension) }
+        MathSyntax.install(on: imageExtension, sourceBytes: source.utf8.count)
         cmark_syntax_extension_set_postprocess_func(imageExtension) { _, _, root in
             guard let root, let iterator = cmark_iter_new(root) else { return root }
             defer { cmark_iter_free(iterator) }
@@ -112,6 +139,15 @@ actor MarkdownRenderer {
                 guard cmark_iter_get_event_type(iterator) == CMARK_EVENT_ENTER,
                       let node = cmark_iter_get_node(iterator) else { continue }
                 let type = cmark_node_get_type(node)
+                if type == CMARK_NODE_CODE_BLOCK,
+                   let info = cmark_node_get_fence_info(node), String(cString: info) == "math",
+                   let literal = cmark_node_get_literal(node) {
+                    let html = MathSyntax.placeholder(String(cString: literal), display: true, block: true)
+                    if cmark_node_set_type(node, CMARK_NODE_HTML_BLOCK) != 0 {
+                        _ = html.withCString { cmark_node_set_literal(node, $0) }
+                    }
+                    continue
+                }
                 if type == CMARK_NODE_HTML_INLINE || type == CMARK_NODE_HTML_BLOCK {
                     if let literal = cmark_node_get_literal(node) {
                         let html = String(cString: literal)
@@ -158,6 +194,16 @@ actor MarkdownRenderer {
         let document = try SwiftSoup.parseBodyFragment(fragment)
         document.outputSettings().prettyPrint(pretty: false)
         try HTMLAdapter.prepare(document, loadRemoteImages: loadRemoteImages)
+        try GitHubAlerts.prepare(document)
+        for code in try document.select("pre > code.language-mermaid").array() {
+            guard let pre = code.parent() else { continue }
+            let figure = Element(try Tag.valueOf("figure"), "")
+            try figure.addClass("mdview-diagram")
+            if pre.hasAttr("id") { try figure.attr("id", pre.attr("id")); try pre.removeAttr("id") }
+            try pre.before(figure)
+            try pre.remove()
+            try figure.appendChild(pre)
+        }
         return document
     }
 

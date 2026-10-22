@@ -5,7 +5,7 @@ A small Markdown viewer for macOS 14 and later, read-only by default. Open files
 - Native document windows, Open Recent, and multiple files.
 - On-device Read Aloud with installed macOS voices, section navigation and saved positions.
 - Automatic refresh, including editors that replace files atomically.
-- Tables, task lists, links, code blocks, footnotes, and blockquotes.
+- Tables, task lists, links, footnotes, GitHub alerts, math and Mermaid diagrams.
 - Optional checklist saves with first-click consent, automatic per-tick saving, and Undo/Redo.
 - Sidebar and top-bar outline navigation, find, zoom, light/dark appearance, and a direct full-width toggle.
 - Highlights for saved changes, with previous text, deletions, next/previous navigation, and individual or whole-document acknowledgement.
@@ -132,6 +132,20 @@ including disclosure blocks. Scripts, interactive controls and active embeds are
 removed. Remote images still require the document’s opt-in. Printing does not add
 an image-size cap; the author controls its size.
 
+## Alerts, math and diagrams
+
+GitHub’s `[!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]` and `[!CAUTION]`
+blockquotes render as labeled callouts. Use `$…$` or ``$`…`$`` for inline
+TeX, `$$…$$` or a fenced `math` block for equations, and fenced `mermaid` blocks for
+diagrams. Math uses KaTeX; Mermaid diagrams include an expandable source view.
+
+Rendering stays on your Mac and needs no CDN. Invalid or oversized expressions and
+diagrams retain readable source. MathML provides mathematical structure to system
+accessibility; Read Aloud reads TeX rather than claiming spoken-math interpretation.
+Diagram descriptions use authored `accTitle`/`accDescr` when available. Diagrams
+use a light drawing surface, including in dark documents and on paper. Try the
+[rendering sample](Fixtures/Rendering.md) in the reader, Quick Look or Print.
+
 ## Build and run
 
 Install Xcode 26+ and [XcodeGen](https://github.com/yonaskolb/XcodeGen), then run:
@@ -253,16 +267,24 @@ retain the usual per-window opt-in.
 
 ## Rendering and iOS
 
-[Apex](https://github.com/ApexMarkdown/apex) 1.1.34 performs Markdown parsing through its native C library. [SwiftSoup](https://github.com/scinfu/SwiftSoup) 2.13.9 prepares the generated HTML for display, and WebKit displays it. The versions are pinned in `project.yml`. App and Quick Look compile the same `Shared` sources and CSS. Those sources have no AppKit dependency and can serve a future iOS document reader; platform document/open/share handling remains separate.
+[Apex](https://github.com/ApexMarkdown/apex) 1.1.34 parses Markdown through its native
+C library; its unchanged build sources are vendored with revision hashes.
+[SwiftSoup](https://github.com/scinfu/SwiftSoup) 2.13.9 sanitizes and adapts HTML.
+Bundled KaTeX 0.19.0 produces static MathML; Mermaid 11.17.2 produces sanitized SVG
+images in a private, offline WebKit worker. The displayed document cannot run
+scripts. Ordinary documents do not start the diagram worker.
 
-There is no runtime CDN, external parser process, or bundled JavaScript parser. Parsing runs outside the main actor.
+App and Quick Look share parsing, static output and CSS. Rendering code can be
+reused by a future iOS reader; native document/window/audio handling stays separate.
+See [dependency provenance](Vendor/Apex/PROVENANCE.md) and [contributing](CONTRIBUTING.md)
+for reproducible builds. There is no runtime CDN or external rendering service.
 
 ## Current boundaries
 
 - Documents are read-only by default. Explicit checkmark consent changes only task markers in a user-selected file; arbitrary text editing is not supported.
 - UTF-8 and BOM-marked UTF-16 files are supported, up to 8 MB.
-- Safe HTML formatting is supported; scripts, plugins, file includes and external rendering tools are disabled. Math and Mermaid rendering are not yet supported.
-- Callout markers such as `[!NOTE]` remain readable inside ordinary blockquotes; specialized callout styling is deferred.
+- Safe HTML formatting, GitHub alerts, KaTeX math and Mermaid diagrams are supported. Author scripts, parser plugins, file includes and external rendering services are disabled.
+- Rendering is bounded: up to 200 math expressions and 20 diagrams per document, 16 KB per expression and 20 KB per diagram. Diagram work has time/edge limits; source remains readable when a limit is reached. Custom diagram scripts, HTML labels and remote resources are blocked. Full GitHub/MathJax parity is not claimed.
 - Images linked to websites are off by default. In the current document’s **Reading options (…) → Load Remote Images**, you can opt in to HTTPS images. Hosts can see your IP address and image requests; MDView sends no document referrer. This choice lasts only until you close the document, and Quick Look never loads remote images. Local images load automatically from relative paths, absolute paths, local `file://` URLs and symlinks wherever macOS permits access. There are no MDView image-folder grants or document-folder boundaries; image formats are handled by WebKit. The directly distributed macOS app uses normal filesystem access, subject to macOS privacy permissions and file permissions. Quick Look previews text and embedded data images.
 - Links open in the browser/mail app; relative file links open as another document subject to macOS file permissions.
 - Code blocks use monospace styling; syntax coloring, PDF export, and an iOS app are future work.
@@ -273,5 +295,5 @@ MDView is released under the [MIT license](LICENSE). Contributions and bug repor
 are welcome; see [Contributing](CONTRIBUTING.md) and the [changelog](CHANGELOG.md).
 For vulnerability reports, see [Security](SECURITY.md).
 
-Apex, its cmark-gfm/libyaml dependencies, and SwiftSoup are MIT licensed. Their license texts are bundled with the reader.
+Apex, libyaml, SwiftSoup, KaTeX and Mermaid use MIT licenses; cmark-gfm includes BSD-2-Clause and component notices. Dependency license texts are bundled with the reader.
 The Markdown Mark is public domain; its notice is also bundled.

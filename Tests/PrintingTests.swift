@@ -29,6 +29,13 @@ final class PrintingTests: XCTestCase {
 
         A **formatted paragraph** with a [working link](https://example.com).
 
+        Equation $x^2 + 1$.
+
+        ```mermaid
+        flowchart LR
+        Source --> Release
+        ```
+
         - [x] Completed task
         - [ ] Remaining task
 
@@ -96,6 +103,8 @@ final class PrintingTests: XCTestCase {
         let heading = try XCTUnwrap(pdf.findString("Printed document", withOptions: []).first?.attributedString)
         let headingFont = try XCTUnwrap(heading.attribute(.font, at: 0, effectiveRange: nil) as? NSFont)
         XCTAssertLessThanOrEqual(headingFont.pointSize, 17.2)
+        XCTAssertFalse(text.contains("$x^2 + 1$"))
+        XCTAssertFalse(text.contains("Source --> Release"), "Print the diagram, not its collapsed source")
         XCTAssertFalse(text.contains("**formatted paragraph**"))
         XCTAssertFalse(text.contains("https://example.com"), "Print visible link text rather than Markdown syntax")
         XCTAssertEqual(webView.pageZoom, 1.5, "Printing must not change the reader's zoom")

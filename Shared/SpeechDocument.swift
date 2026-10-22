@@ -65,7 +65,9 @@ enum SpeechDocumentBuilder {
         func walk(_ element: Element) throws {
             guard try element.attr("aria-hidden") != "true", !element.hasAttr("hidden") else { return }
             let tag = element.tagName()
-            if ["h1", "h2", "h3", "h4", "h5", "h6"].contains(tag) {
+            if tag == "figure", element.hasClass("mdview-diagram") {
+                try append([Part(text: label("diagram"))], element: element, kind: .image)
+            } else if ["h1", "h2", "h3", "h4", "h5", "h6"].contains(tag) {
                 let title = try inline(element)
                 let id = try element.attr("id")
                 sectionID = id.isEmpty ? "section-\(sections.count)" : id
@@ -245,15 +247,15 @@ enum SpeechDocumentBuilder {
             // These short semantic cues follow document language, not UI locale.
             let base = language?.split(separator: "-").first.map(String.init) ?? "en"
             if base == "zh", let language, Locale(identifier: language).language.script?.identifier == "Hant" {
-                return ["checked": "已完成", "unchecked": "未完成", "code": "略過程式碼區塊"][key]!
+                return ["checked": "已完成", "unchecked": "未完成", "code": "略過程式碼區塊", "diagram": "Mermaid 圖表"][key]!
             }
             let labels = [
-                "en": ["checked": "Checked", "unchecked": "Unchecked", "code": "Code block omitted"],
-                "es": ["checked": "Completado", "unchecked": "Pendiente", "code": "Bloque de código omitido"],
-                "zh": ["checked": "已完成", "unchecked": "未完成", "code": "略过代码块"],
-                "ja": ["checked": "完了", "unchecked": "未完了", "code": "コードブロックを省略"],
-                "fr": ["checked": "Terminé", "unchecked": "À faire", "code": "Bloc de code omis"],
-                "de": ["checked": "Erledigt", "unchecked": "Offen", "code": "Codeblock ausgelassen"]
+                "en": ["checked": "Checked", "unchecked": "Unchecked", "code": "Code block omitted", "diagram": "Mermaid diagram"],
+                "es": ["checked": "Completado", "unchecked": "Pendiente", "code": "Bloque de código omitido", "diagram": "Diagrama Mermaid"],
+                "zh": ["checked": "已完成", "unchecked": "未完成", "code": "略过代码块", "diagram": "Mermaid 图表"],
+                "ja": ["checked": "完了", "unchecked": "未完了", "code": "コードブロックを省略", "diagram": "Mermaid 図"],
+                "fr": ["checked": "Terminé", "unchecked": "À faire", "code": "Bloc de code omis", "diagram": "Diagramme Mermaid"],
+                "de": ["checked": "Erledigt", "unchecked": "Offen", "code": "Codeblock ausgelassen", "diagram": "Mermaid-Diagramm"]
             ]
             return labels[base]?[key] ?? labels["en"]![key]!
         }

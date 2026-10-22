@@ -30,7 +30,16 @@ if (!target || !main.contains(target)) return null;
 let offset = 0;
 if (target.contains(range.startContainer)) {
     const prefix = document.createRange(); prefix.selectNodeContents(target);
-    prefix.setEnd(range.startContainer,range.startOffset);
-    offset = prefix.toString().length;
+    const formula = start?.closest?.('.mdview-math');
+    if (formula && target.contains(formula)) prefix.setEndBefore(formula);
+    else prefix.setEnd(range.startContainer,range.startOffset);
+    // Generated MathML contains visual tokens plus a TeX annotation. Selection
+    // offsets use the original single TeX source, matching native speech maps.
+    const length = node => {
+        if (node.nodeType === Node.TEXT_NODE) return node.data.length;
+        if (node.nodeType === Node.ELEMENT_NODE && node.hasAttribute('data-mdview-math-source')) return node.getAttribute('data-mdview-math-source').length;
+        return Array.from(node.childNodes).reduce((n, child) => n + length(child), 0);
+    };
+    offset = length(prefix.cloneContents());
 }
 return {elementID:target.dataset.mdviewSpeech,offset};

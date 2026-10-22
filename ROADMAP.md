@@ -9,18 +9,40 @@ deliberate exception to read-only viewing.
 
 **1.6** adds rendered printing and safe HTML/image sizing. Version 1.5 brought
 Read Aloud, native UX polish and initial translations; there was no separate 1.4
-release. Later milestones are plans, not delivery dates; 2.0 brings iOS support.
+release. Finish macOS readiness for broader adoption before starting iOS. Later
+milestones are plans, not delivery dates; 2.0 brings iOS support.
 
 | Release | Focus | Planned outcome |
 | --- | --- | --- |
 | **1.2 — released** | Checklists and bounded accessibility fixes | Save ticks with first-click consent and Undo; clearer controls, task names and focus. |
 | **1.3 — released** | Accessible navigation and reliable updates | Preserve reading position, pause file updates, useful announcements, better change review and faster navigation. Prepare localization. |
 | **1.5 — released** | Read Aloud, native UX polish and localization | On-device Markdown playback, a coherent native interface and initial translations. |
-| **1.6** | Printing and Markdown compatibility | Native printing/PDF export, compact paper layout and authored HTML image dimensions. |
+| **1.6 — released** | Printing and Markdown compatibility | Native printing/PDF export, compact paper layout and authored HTML image dimensions. |
+| **Next macOS milestone** | Compatibility and release quality | Close agreed rendering gaps and verify core reading workflows, accessibility and performance. |
 | **2.0** | macOS and iOS | Shared reading and speech capabilities with native file handling and a mobile listening experience. |
 
-Design and accessibility improvements can also ship incrementally. The 1.5
-milestone should not become a prerequisite that unnecessarily delays iOS.
+## Next — macOS readiness
+
+Prioritize a dependable Mac app for broader adoption before starting the iOS app.
+This milestone is about predictable everyday use, not supporting every Markdown
+extension or adding general editing.
+
+- Alert callouts, KaTeX math and Mermaid are implemented locally, with offline
+  rendering, readable fallback and bounded work. Native reader, Quick Look and
+  print checks pass; broader GitHub parity remains an ongoing compatibility target.
+- Verify a representative document set: tables, tasks, links, authored image sizes,
+  disclosure blocks, long files and printed/PDF output.
+- Check complete workflows: opening files and Quick Look, live streaming,
+  refresh/pause/resume, change review, checklist saves/Undo and Read Aloud.
+- Address reproducible crashes, slowdowns, keyboard/focus issues, VoiceOver gaps
+  and translation/layout defects found in those checks. Distinguish automated
+  checks from actual spoken accessibility acceptance.
+- Keep installation, setup and brief documentation clear; resolve the local
+  Xcode 27 dependency-build issue. The unchanged pinned Apex sources are now
+  included locally with provenance and hash verification.
+
+Ship focused Mac updates as these checks pass. Start 2.0 after this readiness
+milestone; its exact acceptance cases and release numbers can be set separately.
 
 ## 1.2 — checklists
 
@@ -180,11 +202,13 @@ the app's visual identity unless a separate change is requested.
 
 Use GitHub Flavored Markdown as the compatibility target, with regression fixtures
 for tables, task lists, autolinks, strikethrough and sanitized HTML/image sizing.
-Keep author-controlled dimensions consistent on screen and paper. Track remaining
-GitHub-specific rendering—alerts, math and Mermaid—separately; do not claim full
-GitHub parity until those features and broader conformance checks pass.
+Keep author-controlled dimensions consistent on screen and paper. Alerts, math
+and Mermaid now have dedicated regression coverage. This is a practical GitHub
+compatibility target; full GitHub/MathJax parity is not claimed.
 
 ## 2.0 — macOS and iOS
+
+Begin after the macOS readiness milestone above.
 
 - Share parsing, rendering, speech preparation and suitable reader state while
   keeping platform document/window/audio integration native.

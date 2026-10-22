@@ -1,0 +1,18 @@
+{
+  "name": "mdview-renderers",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "katex": "0.19.0",
+    "mermaid": "11.17.2"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  },
+  "overrides": {
+    "katex": "$katex"
+  }
+}

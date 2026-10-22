@@ -76,7 +76,7 @@ final class MarkdownTests: XCTestCase {
         XCTAssertTrue(result.html.contains("footnote"))
         XCTAssertTrue(result.html.contains("Keep this nearby."))
         XCTAssertTrue(result.html.contains("blockquote"))
-        XCTAssertTrue(result.html.contains("[!NOTE]"))
+        XCTAssertTrue(result.html.contains("mdview-alert-note"))
     }
 
     func testDraftsURLPreservesUnicodeAndReservedCharacters() throws {

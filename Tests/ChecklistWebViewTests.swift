@@ -14,7 +14,7 @@ final class ChecklistWebViewTests: XCTestCase {
         reader.render()
         let controller = NSHostingController(rootView: ReaderView(reader: reader))
         let window = NSWindow(contentViewController: controller)
-        window.setContentSize(NSSize(width: 600, height: 400)); window.orderFront(nil)
+        window.setContentSize(NSSize(width: 600, height: 400)); window.makeKeyAndOrderFront(nil)
         defer { window.close(); reader.stop(); try? FileManager.default.removeItem(at: file) }
         try await waitForDisabled(false, in: controller.view)
         reader.requestTaskChecked(0, checked: true)
@@ -141,6 +141,17 @@ final class ChecklistWebViewTests: XCTestCase {
 
     private func waitForDisabled(_ expected: Bool, in view: NSView) async throws {
         for _ in 0..<150 {
+            // Wait for the native sheet lifecycle, not only the earlier DOM state.
+            // Disable animation in this fixture to avoid macOS27's UpdateCycle
+            // close-sheet crash; actual app consent behavior remains unchanged.
+            if expected {
+                guard let sheet = view.window?.attachedSheet else {
+                    try await Task.sleep(for: .milliseconds(20)); continue
+                }
+                sheet.animationBehavior = .none
+            } else if view.window?.attachedSheet != nil {
+                try await Task.sleep(for: .milliseconds(20)); continue
+            }
             if let webView = findWebView(view), webView.url != nil, !webView.isLoading,
                let value = try? await webView.evaluateJavaScript("document.querySelector('input')?.disabled") as? Bool,
                value == expected { return }

@@ -25,6 +25,18 @@ always blocked in Finder Quick Look. An image request can disclose your IP
 address to its host. Appearance preferences are shared only between the signed
 app and its Quick Look extension through their macOS App Group.
 
+Math runs through bundled KaTeX in JavaScriptCore with trusted commands disabled,
+finite expansion/size limits and fresh expression macros. Static MathML is inserted
+after author HTML sanitization. Quick Look includes the network-client entitlement
+required to launch WebKit; its worker blocks network resources with CSP and
+navigation policy. Mermaid runs only bundled app-owned code in a
+private nonpersistent WebKit view with networking/navigation blocked. Its config
+is locked, HTML labels/click actions disabled, and output sanitized and embedded
+as passive SVG images. Source is passed as data, never executable JavaScript.
+Renderer limits and bounded in-memory caching keep failures local to the affected
+expression/diagram; readable source remains available. No document is sent to a
+rendering service, and none of these features enables scripts in the reader.
+
 ## Reporting
 
 Report ordinary bugs through the issue template using a sanitized example.

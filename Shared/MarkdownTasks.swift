@@ -19,7 +19,17 @@ enum MarkdownTasks {
         guard !inputs.isEmpty else { return [] }
         let bytes = Array(source.utf8)
         let starts = [0] + bytes.indices.filter { bytes[$0] == 10 }.map { $0 + 1 }
-        guard let root = source.withCString({ cmark_parse_document($0, bytes.count, 0) }) else { return [] }
+        // Use the same cmark math grammar as display rendering. Exact source
+        // positions and marker-byte checks still gate every checklist write.
+        guard let parser = cmark_parser_new(0), let ext = cmark_syntax_extension_new("mdview-task-math") else { return [] }
+        defer {
+            cmark_parser_free(parser)
+            cmark_syntax_extension_free(cmark_get_default_mem_allocator(), ext)
+        }
+        MathSyntax.install(on: ext, sourceBytes: source.utf8.count)
+        _ = cmark_parser_attach_syntax_extension(parser, ext)
+        source.withCString { cmark_parser_feed(parser, $0, bytes.count) }
+        guard let root = cmark_parser_finish(parser) else { return [] }
         defer { cmark_node_free(root) }
         var candidates: [(Int, UInt8, String)] = []
         func visit(_ node: UnsafeMutablePointer<cmark_node>) throws {
@@ -41,7 +51,7 @@ enum MarkdownTasks {
                         // The match ends at ], so the state is the penultimate byte.
                         let markerOffset = offset + state
                         if bytes.indices.contains(markerOffset), let paragraph = cmark_node_first_child(node),
-                           let html = cmark_render_html(paragraph, 0, nil) {
+                           let html = cmark_render_html(paragraph, Int32(CMARK_OPT_UNSAFE), nil) {
                             defer { free(html) }
                             let label = try SwiftSoup.parseBodyFragment(String(cString: html)).text()
                             let cleaned = label.hasPrefix("[") && label.dropFirst(2).hasPrefix("]") ? String(label.dropFirst(3)).trimmingCharacters(in: .whitespacesAndNewlines) : ""

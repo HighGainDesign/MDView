@@ -51,6 +51,7 @@ jobs:
       - name: Run tests before installing credentials
         run: |
           set -euo pipefail
+          python3 script/verify-vendor.py
           python3 script/validate-localizations.py
           xcodegen generate
           xcodebuild -project MDView.xcodeproj -scheme MDView -configuration Debug \
