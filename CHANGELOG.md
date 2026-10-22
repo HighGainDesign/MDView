@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.7.0 — 2026-10-22
 
 - Render GitHub alerts, math and Mermaid diagrams offline.
 - Improve Mac compatibility and reproducible builds.

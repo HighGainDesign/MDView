@@ -7,10 +7,9 @@ should make reading, following updates and reviewing documents easier without
 turning the app into a general Markdown editor. Saving checklist markers is the
 deliberate exception to read-only viewing.
 
-**1.6** adds rendered printing and safe HTML/image sizing. Version 1.5 brought
-Read Aloud, native UX polish and initial translations; there was no separate 1.4
-release. Finish macOS readiness for broader adoption before starting iOS. Later
-milestones are plans, not delivery dates; 2.0 brings iOS support.
+**1.7** adds GitHub alerts, offline math and Mermaid, with a bounded Mac readiness
+pass. Version 1.6 added printing and safe HTML/image sizing. Next is an iOS MVP
+for 2.0; later milestones are plans, not delivery dates.
 
 | Release | Focus | Planned outcome |
 | --- | --- | --- |
@@ -18,10 +17,10 @@ milestones are plans, not delivery dates; 2.0 brings iOS support.
 | **1.3 — released** | Accessible navigation and reliable updates | Preserve reading position, pause file updates, useful announcements, better change review and faster navigation. Prepare localization. |
 | **1.5 — released** | Read Aloud, native UX polish and localization | On-device Markdown playback, a coherent native interface and initial translations. |
 | **1.6 — released** | Printing and Markdown compatibility | Native printing/PDF export, compact paper layout and authored HTML image dimensions. |
-| **Next macOS milestone** | Compatibility and release quality | Close agreed rendering gaps and verify core reading workflows, accessibility and performance. |
+| **1.7** | Mac compatibility and readiness | GitHub alerts, offline math/Mermaid, consistent static output and reproducible builds. |
 | **2.0** | macOS and iOS | Shared reading and speech capabilities with native file handling and a mobile listening experience. |
 
-## Next — macOS readiness
+## Mac readiness
 
 Prioritize a dependable Mac app for broader adoption before starting the iOS app.
 This milestone is about predictable everyday use, not supporting every Markdown
@@ -41,8 +40,9 @@ extension or adding general editing.
   Xcode 27 dependency-build issue. The unchanged pinned Apex sources are now
   included locally with provenance and hash verification.
 
-Ship focused Mac updates as these checks pass. Start 2.0 after this readiness
-milestone; its exact acceptance cases and release numbers can be set separately.
+The bounded pass covers these workflows; compatibility fixes continue alongside
+2.0. The next development goal is an iOS MVP using the shared reader and speech
+code with native Files integration.
 
 ## 1.2 — checklists
 
