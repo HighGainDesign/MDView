@@ -14,7 +14,8 @@ enum HTMLAdapter {
     ]
 
     static func prepare(_ document: Document, loadRemoteImages: Bool = false) throws {
-        var ids: [String: Int] = [:]
+        var ids: Set<String> = []
+        var nextSuffix: [String: Int] = [:]
         var htmlHeadingIndex = 0
         for element in try document.getAllElements().array() {
             let tag = element.tagName()
@@ -51,9 +52,16 @@ enum HTMLAdapter {
             }
             if element.hasAttr("id") {
                 let original = try element.attr("id")
-                let count = ids[original, default: 0]
-                ids[original] = count + 1
-                try element.attr("id", "mdview-" + original + (count == 0 ? "" : "-\(count)"))
+                let base = "mdview-" + original
+                var candidate = base
+                var suffix = nextSuffix[base, default: 1]
+                while ids.contains(candidate) {
+                    candidate = base + "-\(suffix)"
+                    suffix += 1
+                }
+                ids.insert(candidate)
+                nextSuffix[base] = suffix
+                try element.attr("id", candidate)
             }
             if element.hasAttr("href") {
                 let href = try element.attr("href")
@@ -83,6 +91,13 @@ enum HTMLAdapter {
                 }
             }
             if tag == "img" {
+                // Preserve authored proportions when max-width shrinks an image.
+                // Only sanitizer-validated pixel dimensions generate this CSS.
+                if let width = Int32(try element.attr("width")), width > 0,
+                   let height = Int32(try element.attr("height")), height > 0 {
+                    let alignment = try element.attr("style")
+                    try element.attr("style", (alignment.isEmpty ? "" : alignment + ";") + "aspect-ratio: \(width) / \(height); height: auto")
+                }
                 let src = try element.attr("src")
                 // Private comparison metadata preserves the Markdown image URL
                 // without loading it when remote resources are disabled.

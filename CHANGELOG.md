@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.6.0 — 2026-10-22
 
 - Print rendered documents with ⌘P and a compact PDF layout.
 - Support safe GitHub-style HTML and authored image dimensions.

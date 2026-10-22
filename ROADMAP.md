@@ -1,21 +1,22 @@
 # MDView roadmap
 
-Last updated: October 14, 2026.
+Last updated: October 22, 2026.
 
 MDView should remain a fast Markdown reader with focused integrations. Additions
 should make reading, following updates and reviewing documents easier without
 turning the app into a general Markdown editor. Saving checklist markers is the
 deliberate exception to read-only viewing.
 
-**1.5** combines Read Aloud, native UX polish and initial translations. Versions
-1.2 and 1.3 are also released; there is no separate 1.4 release. Later milestones
-are plans, not delivery dates; 2.0 brings iOS support.
+**1.6** adds rendered printing and safe HTML/image sizing. Version 1.5 brought
+Read Aloud, native UX polish and initial translations; there was no separate 1.4
+release. Later milestones are plans, not delivery dates; 2.0 brings iOS support.
 
 | Release | Focus | Planned outcome |
 | --- | --- | --- |
 | **1.2 — released** | Checklists and bounded accessibility fixes | Save ticks with first-click consent and Undo; clearer controls, task names and focus. |
 | **1.3 — released** | Accessible navigation and reliable updates | Preserve reading position, pause file updates, useful announcements, better change review and faster navigation. Prepare localization. |
 | **1.5 — released** | Read Aloud, native UX polish and localization | On-device Markdown playback, a coherent native interface and initial translations. |
+| **1.6** | Printing and Markdown compatibility | Native printing/PDF export, compact paper layout and authored HTML image dimensions. |
 | **2.0** | macOS and iOS | Shared reading and speech capabilities with native file handling and a mobile listening experience. |
 
 Design and accessibility improvements can also ship incrementally. The 1.5

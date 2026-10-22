@@ -15,7 +15,7 @@ final class GitHubCompatibilityTests: XCTestCase {
         XCTAssertTrue(try image.attr("src").hasPrefix("mdview-resource://local/"))
         XCTAssertFalse(image.hasAttr("onerror"))
         XCTAssertFalse(image.hasAttr("srcset"))
-        XCTAssertFalse(image.hasAttr("style"))
+        XCTAssertEqual(try image.attr("style"), "aspect-ratio: 320 / 180; height: auto")
     }
 
     func testPassiveGitHubFormattingAndCoreGFMFeaturesRender() async throws {
@@ -86,6 +86,39 @@ final class GitHubCompatibilityTests: XCTestCase {
         XCTAssertFalse(try XCTUnwrap(body.select("a").first()).hasAttr("href"))
     }
 
+    func testRemovingAuthorControlsPreservesSurroundingHTMLContent() async throws {
+        let result = try await MarkdownRenderer.shared.render("""
+        <div>
+        <p>Keep this text</p>
+        <input type="text">
+        <img src="x.png" width="320">
+        </div>
+
+        - [ ] A real task
+
+        Text <b title="<input">bold</b>
+        """, mapTasks: true)
+        let body = try XCTUnwrap(try SwiftSoup.parse(result.html).body())
+        XCTAssertTrue(try body.text().contains("Keep this text"))
+        XCTAssertEqual(try body.select("b").text(), "bold")
+        XCTAssertEqual(try body.select("img[width=320]").size(), 1)
+        XCTAssertEqual(try body.select("input").size(), 1)
+        XCTAssertEqual(result.tasks.map(\.label), ["A real task"])
+    }
+
+    func testAuthorHeadingIDsCannotCollideWithGeneratedSuffixes() async throws {
+        let result = try await MarkdownRenderer.shared.render("""
+        <h2 id="x">A</h2><h2 id="x">B</h2><h2 id="x-1">C</h2>
+        <h2>No author ID</h2><h2 id="html-heading-0">D</h2>
+        """)
+        XCTAssertEqual(result.headings.count, 5)
+        XCTAssertEqual(Set(result.headings.map(\.id)).count, 5)
+        let body = try XCTUnwrap(try SwiftSoup.parse(result.html).body())
+        for heading in result.headings {
+            XCTAssertEqual(try body.select("[id=\(heading.id)]").size(), 1)
+        }
+    }
+
     @MainActor
     func testWebKitHonorsAuthoredImageWidthAndHeight() async throws {
         let image = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j5iQAAAAASUVORK5CYII="
@@ -101,5 +134,16 @@ final class GitHubCompatibilityTests: XCTestCase {
             try await Task.sleep(for: .milliseconds(25))
         }
         XCTAssertEqual(size, [320, 180])
+        let narrow = try await web.evaluateJavaScript("""
+        (() => {
+            document.querySelector('main').style.width = '200px';
+            const rect = document.querySelector('img').getBoundingClientRect();
+            return [rect.width, rect.height];
+        })()
+        """) as? [Double]
+        let dimensions = try XCTUnwrap(narrow)
+        XCTAssertLessThan(dimensions[0], 320)
+        XCTAssertEqual(dimensions[0] / dimensions[1], 320.0 / 180.0, accuracy: 0.01,
+                       "Narrow panes and paper must preserve the authored image ratio")
     }
 }

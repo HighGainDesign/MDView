@@ -115,9 +115,21 @@ actor MarkdownRenderer {
                 if type == CMARK_NODE_HTML_INLINE || type == CMARK_NODE_HTML_BLOCK {
                     if let literal = cmark_node_get_literal(node) {
                         let html = String(cString: literal)
-                        if html.range(of: "<input", options: .caseInsensitive) != nil,
-                           (try? SwiftSoup.parseBodyFragment(html).select("input").size()) != 0 {
-                            _ = "".withCString { cmark_node_set_literal(node, $0) }
+                        if html.range(of: "<input", options: .caseInsensitive) != nil {
+                            // Remove controls before task mapping without discarding
+                            // surrounding author text, images or passive formatting.
+                            let filtered: String
+                            do {
+                                let fragment = try SwiftSoup.parseBodyFragment(html)
+                                fragment.outputSettings().prettyPrint(pretty: false)
+                                let controls = try fragment.select("input")
+                                if controls.isEmpty() { filtered = html }
+                                else {
+                                    try controls.remove()
+                                    filtered = try fragment.body()?.html() ?? ""
+                                }
+                            } catch { filtered = "" }
+                            _ = filtered.withCString { cmark_node_set_literal(node, $0) }
                         }
                     }
                     continue
