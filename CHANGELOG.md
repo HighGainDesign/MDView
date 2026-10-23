@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Renamed MDView to Margined.
+
 ## 1.7.0 — 2026-10-22
 
 - Render GitHub alerts, math and Mermaid diagrams offline.
